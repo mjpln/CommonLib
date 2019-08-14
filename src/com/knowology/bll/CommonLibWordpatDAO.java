@@ -7,6 +7,8 @@ import java.util.Map;
 
 import javax.servlet.jsp.jstl.sql.Result;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.knowology.GlobalValue;
@@ -850,7 +852,130 @@ public class CommonLibWordpatDAO {
 		
 	}
 
+	/**
+	 *@description 查询指定标准问下模板是否存在
+	 *@param kbdataid 摘要ID
+	 *@param wordpat 复杂词模
+	 *@return 
+	 *@returnType Result 
+	 */
+	public static Result exist(String kbdataid,String wordpat) {
+		// 将模板按照#拆分
+		String pattern[] = wordpat.split("#");
+		// 获取词模体
+		String patternbefore = pattern[0];
+		// 将返回值按照&拆分，获取返回值数组
+		String returnvalue[] = pattern[1].split("&");
+		// 定义SQL语句集合
+		StringBuilder sql = new StringBuilder();
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		// 定义SQL语句集合
+		sql = new StringBuilder();
+		// 定义绑定参数集合
+		lstpara = new ArrayList<Object>();
+		// 定义查询词模的SQL语句
+		sql.append("select * from wordpat where kbdataid= ? and wordpat like ?  ");
+		lstpara.add(kbdataid);
+		// 绑定词模参数
+		lstpara.add(patternbefore+ "%");
+		// 循环遍历返回值数组
+		for (String s : returnvalue) {
+			// 判断是否含有编者
+			if (s.contains("编者")) {
+				// 加上词模的条件
+				sql.append(" and wordpat like ? ");
+				// 加上编者参数
+				lstpara.add("%编者%");
+				continue;
+			}
+			// 加上词模的条件
+			sql.append(" and wordpat like ? ");
+			// 加上返回值参数
+			lstpara.add("%" + s + "%");
+		}
+		// 执行SQL语句，获取相应的数据源
+		Result rs = Database
+				.executeQuery(sql.toString(), lstpara.toArray());
+		//文件日志
+		GlobalValue.myLog.info( sql + "#" + lstpara );
+		return rs;	
+	}
 	
+	/**
+	 *@description 查询模板是否存在
+	 *@param brand 品牌
+	 *@param kbdataid 摘要ID
+	 *@param wordpat 复杂词模
+	 *@param serviceRoot 业务根
+	 *@return 
+	 *@returnType Result 
+	 */
+	public static Result exist(String brand,String kbdataid,String wordpat,String serviceRoot) {
+		// 将模板按照#拆分
+		String pattern[] = wordpat.split("#");
+		// 获取词模体
+		String patternbefore = pattern[0];
+		// 将返回值按照&拆分，获取返回值数组
+		String returnvalue[] = pattern[1].split("&");
+		// 定义SQL语句集合
+		StringBuilder sql = new StringBuilder();
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		// 判断词模是否含有~
+		if (wordpat.contains("~") && !StringUtils.isEmpty(kbdataid)) {//如果是排除词模，当前摘要下相同名的词模只能存在一条
+			// 定义SQL语句集合
+			sql = new StringBuilder();
+			// 定义绑定参数集合
+			lstpara = new ArrayList<Object>();
+			sql
+					.append("select s.service,s.brand,k.topic,k.abstract,t.wordpat from service s,kbdata k,wordpat t where  s.serviceid=k.serviceid and k.kbdataid=t.kbdataid  and s.brand= ?  ");
+			// 绑定品牌参数
+			lstpara.add(brand);
+			// 加上摘要id条件
+			sql.append(" and  t.kbdataid = ?");
+				// 绑定摘要id参数
+			lstpara.add(kbdataid);
+			// 加上词模查询条件
+			sql.append(" and t.wordpat like ? ");
+			// 绑定词模参数
+			lstpara.add(patternbefore  + "%");
+
+		} else {//非排除词模当前四层结构下只能存在一条
+			// 定义SQL语句集合
+			sql = new StringBuilder();
+			// 定义绑定参数集合
+			lstpara = new ArrayList<Object>();
+			// 定义查询词模的SQL语句
+			sql
+					.append("select s.service,s.brand,k.topic,k.abstract,t.wordpat from service s,kbdata k,wordpat t where  s.serviceid=k.serviceid and k.kbdataid=t.kbdataid   and s.brand in("+serviceRoot+") ");
+			// 加上词模查询条件
+			sql.append(" and t.wordpat like ? ");
+			// 绑定词模参数
+			lstpara.add(patternbefore+ "%");
+		}
+		// 循环遍历返回值数组
+		for (String s : returnvalue) {
+			// 判断是否含有编者
+			if (s.contains("编者")) {
+				// 加上词模的条件
+				sql.append(" and t.wordpat like ? ");
+				// 加上编者参数
+				lstpara.add("%编者%");
+				continue;
+			}
+			// 加上词模的条件
+			sql.append(" and t.wordpat like ? ");
+			// 加上返回值参数
+			lstpara.add("%" + s + "%");
+		}
+			// 执行SQL语句，获取相应的数据源
+			Result rs = Database
+					.executeQuery(sql.toString(), lstpara.toArray());
+			//文件日志
+			GlobalValue.myLog.info( sql + "#" + lstpara );
+			return rs;
+	}
 	
 	/**
 	 *@description 查询模板是否存在
@@ -1001,6 +1126,73 @@ public class CommonLibWordpatDAO {
 		int c = Database.executeNonQueryTransaction(lstSql, lstLstpara);
 		return c;
 		
+	}
+	
+	/**
+	 *@description  批量删除词模
+	 *@param user   用户信息
+	 *@param brand  品牌
+	 *@param service 业务
+	 *@param wordpatid 词模ID
+	 *@param wordpat 词模
+	 *@param simpleWordpat 简单词模
+	 *@return 
+	 *@returnType int 
+	 */
+	public static int batchDelete(User user,String brand,String service,List<String> wordpatidList,List<String> wordpat,List<String> simpleWordpatList) {
+		
+		// 定义多条SQL语句
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		// 将地市id按照逗号拆分
+		for(int i =0 ;i<wordpatidList.size();i++){
+			// 定义SQL语句
+			StringBuilder sql = new StringBuilder();
+			
+			String wordpatid =wordpatidList.get(i);
+			// 定义删除模板的SQL语句
+			sql.append("delete from wordpat  where wordpatid=? ");
+			// 定义绑定参数集合
+			List<Object> lstpara = new ArrayList<Object>();
+			// 绑定旧的模板参数
+			lstpara.add(wordpatid);
+			lstSql.add(sql.toString());
+			lstLstpara.add(lstpara);
+			//文件日志
+			GlobalValue.myLog.info(user.getUserID() + "#" + sql + "#" + lstpara );
+			
+			
+			// 添加简单词模操作日志记录
+			lstSql.add(GetConfigValue.LogSql());
+			
+			String simpleWordpat = simpleWordpatList.get(i);
+			// 将定义的绑定参数集合放入集合中
+			lstLstpara.add(GetConfigValue.LogParam(user.getUserIP(), user
+					.getUserID(), user.getUserName(),brand,service, "删除模板",
+					simpleWordpat,  "WORDPAT"));
+			
+		}
+		
+		// 执行SQL语句，绑定事务，返回事务处理结果
+		int c = Database.executeNonQueryTransaction(lstSql, lstLstpara);
+		return c;
+		
+	}
+	
+	/**
+	 *@description 迁移模板
+	 *@param kbdataid 摘要ID
+	 *@param wordpatid 词模id
+	 *@param city 词模地市
+	 *@return 
+	 *@returnType Result 
+	 */
+	public static int transferWordpat(String kbdataid,String wordpatid,String city) {
+		String sql = "update wordpat set kbdataid = ? ,city = ? where wordpatid = ?";
+		
+		int r = Database.executeNonQuery(sql, kbdataid,city,wordpatid);
+		return r;
 	}
 	
 }

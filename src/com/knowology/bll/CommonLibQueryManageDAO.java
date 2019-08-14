@@ -4186,6 +4186,29 @@ public class CommonLibQueryManageDAO {
 		return rs;
 	}
 	
+	public static Result getWordpatCountByKbdataId(List<String> kbdataId,boolean showAutoWordpat) {
+		if(kbdataId == null || kbdataId.size() < 1)
+			return null;
+		
+		StringBuilder builder = new StringBuilder();
+		builder.append("SELECT kbdataid, COUNT(*) as count FROM wordpat WHERE kbdataid in("
+				+StringUtils.join(kbdataId,",")+
+		")  ");
+		if(!showAutoWordpat){
+			builder.append(" AND wordpattype!=5 ");
+		}
+		builder.append(" group by kbdataid");
+		//文件日志
+		GlobalValue.myLog.info(builder.toString());
+		Result rs = null;
+		try {
+			//执行sql语句
+			rs = Database.executeQuery(builder.toString());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		return rs;
+	}
 
 	public static Result getRelatequeryCountByKbdataId(List<String> kbdataId) {
 		if(kbdataId == null || kbdataId.size() < 1)

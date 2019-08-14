@@ -1,0 +1,9 @@
+#Tue Sep 22 10:54:39 CST 2015
+eclipse.preferences.version=1
+encoding//src/com/knowology/Bean/Attribute.java=UTF-8
+encoding//src/com/knowology/DataLayer/DbLogic.java=UTF-8
+encoding//src/com/knowology/dal/Database.java=UTF-8
+encoding//src/commonLibGlobal.properties=UTF-8
+encoding//src/jdbc_mysql.properties=UTF-8
+encoding//src/jdbc_oracle.properties=UTF-8
+encoding//src/log4j.properties=UTF-8

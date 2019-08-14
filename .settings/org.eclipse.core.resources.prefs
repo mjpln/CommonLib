@@ -1,0 +1,17 @@
+=\=\=\=\=\=\=
+<<<<<<<=.mine
+>>>>>>>=.r3595
+eclipse.preferences.version=1
+encoding//src/com/knowology/API/HttpClient.java=UTF-8
+encoding//src/com/knowology/Bean/Attribute.java=UTF-8
+encoding//src/com/knowology/Bean/User.java=UTF-8
+encoding//src/com/knowology/DataLayer/DbLogic.java=UTF-8
+encoding//src/com/knowology/DataLayer/Gr.java=UTF-8
+encoding//src/com/knowology/bll/CommonLibQueryManageDAO.java=UTF-8
+encoding//src/com/knowology/dal/Database.java=UTF-8
+encoding//src/com/util/StringUtil.java=UTF-8
+encoding//src/commonLibGlobal.properties=UTF-8
+encoding//src/jdbc_mysql.properties=UTF-8
+encoding//src/jdbc_oracle.properties=UTF-8
+encoding//src/log4j.properties=UTF-8
+encoding/<project>=UTF-8

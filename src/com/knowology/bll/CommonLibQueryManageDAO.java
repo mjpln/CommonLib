@@ -4248,4 +4248,28 @@ public class CommonLibQueryManageDAO {
 		return rs;
 	}
 	
+	/**
+	 * 查询问题ID
+	 * 
+	 * @param query
+	 * @param kbdateId
+	 * @return
+	 */
+	public static Result getQueryIdByQuery(String query, String kbdateId) {
+		//定义查询sql语句
+		String sql = "select q.* from querymanage q where q.kbdataid = ? and q.query = ?";
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		lstpara.add(kbdateId);
+		lstpara.add(query);
+		Result rs = null;
+		try {
+			//执行sql语句
+			rs = Database.executeQuery(sql, lstpara.toArray());
+		} catch (Exception e) {
+			e.printStackTrace();
+		}
+		
+		return rs;
+	}
 }

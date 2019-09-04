@@ -316,6 +316,74 @@ public class CommonLibServiceAttrDao {
 		GlobalValue.myLog.info(sql + "#" + lstpara);
 		return c;
 	}
+	
+	/**
+	 * 新增属性名称
+	 * 
+	 * @param serviceid参数业务id
+	 * @param service参数业务
+	 * @param name参数属性名称
+	 * @param column参数列值
+	 * @param wordclass参数词类名称
+	 * @return 新增是否成功
+	 */
+	public static int InsertAttrName(User user, String serviceid, String service,
+			String name, String semanticskeyword, String container,
+			String column, String wordclass, String wordclassid,
+			String serviceType) {
+		 // 定义多条SQL语句集合
+		 List<String> lstSql = new ArrayList<String>();
+		 // 定义多条SQL语句对应的绑定参数集合
+		 List<List<?>> lstLstpara = new ArrayList<List<?>>();
+
+		// 定义新增属性名称的SQL语句
+		String sql = "insert into serviceattrname2colnum (serviceattrname2colnumid,name,semanticskeyword,container,columnnum,wordclassid,serviceid,service) values (?,?,?,?,?,?,?,?)";
+		// 定义绑定参数集合
+		ArrayList<Object> lstpara = new ArrayList<Object>();
+		String serviceattrname2colnumid = "";
+		String bussinessFlag = CommonLibMetafieldmappingDAO
+				.getBussinessFlag(serviceType);
+		if (GetConfigValue.isOracle) {
+			serviceattrname2colnumid = ConstructSerialNum.GetOracleNextValNew(
+					"serviceattrname2colnum_seq", bussinessFlag);
+		} else if (GetConfigValue.isMySQL) {
+			serviceattrname2colnumid = ConstructSerialNum.getSerialIDNew(
+					"serviceattrname2colnum", "serviceattrname2colnumid",
+					bussinessFlag);
+		}
+		// 获取属性名称表的序列值，并绑定参数
+		lstpara.add(serviceattrname2colnumid);
+		// 绑定属性名称参数
+		lstpara.add(name);
+		// 绑定语义关键词信息
+		lstpara.add(semanticskeyword);
+		// 绑定列归属参数
+		lstpara.add(container);
+		// 绑定列值参数
+		lstpara.add(column);
+		// 绑定词类id参数
+		lstpara.add(wordclassid);
+		// 绑定业务id参数
+		lstpara.add(serviceid);
+		// 绑定业务参数
+		lstpara.add(service);
+		
+		lstSql.add(sql);
+		lstLstpara.add(lstpara);
+		
+		// 将操作日志SQL语句放入集合中
+		lstSql.add(GetConfigValue.LogSql());
+		lstLstpara.add(GetConfigValue.LogParam(user.getUserIP(), user
+				.getUserID(), user.getUserName(), " ", service,
+				"增加信息列", name, "SERVICEATTRNAME2COLNUM"));
+
+		// 执行SQL语句，绑定事务，返回事务处理结果
+		int c = Database.executeNonQueryTransaction(lstSql, lstLstpara);
+
+		// 文件日志
+		GlobalValue.myLog.info(sql + "#" + lstpara);
+		return c;
+	}
 
 	/**
 	 * 查询属性名称组成field和name,以及对应的属性值

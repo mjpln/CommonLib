@@ -2,6 +2,7 @@ package com.knowology.bll;
 
 //import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -269,64 +270,6 @@ public class CommonLibServiceAttrDao {
 	 * @param wordclass参数词类名称
 	 * @return 新增是否成功
 	 */
-	public static int InsertAttrName(String serviceid, String service,
-			String name, String semanticskeyword, String container,
-			String column, String wordclass, String wordclassid,
-			String serviceType) {
-		// 定义多条SQL语句集合
-		// List<String> lsts = new ArrayList<String>();
-		// 定义多条SQL语句对应的绑定参数集合
-		// List<List<?>> lstlstpara = new ArrayList<List<?>>();
-
-		// 定义新增属性名称的SQL语句
-		String sql = "insert into serviceattrname2colnum (serviceattrname2colnumid,name,semanticskeyword,container,columnnum,wordclassid,serviceid,service) values (?,?,?,?,?,?,?,?)";
-		// 定义绑定参数集合
-		ArrayList<Object> lstpara = new ArrayList<Object>();
-		String serviceattrname2colnumid = "";
-		String bussinessFlag = CommonLibMetafieldmappingDAO
-				.getBussinessFlag(serviceType);
-		if (GetConfigValue.isOracle) {
-			serviceattrname2colnumid = ConstructSerialNum.GetOracleNextValNew(
-					"serviceattrname2colnum_seq", bussinessFlag);
-		} else if (GetConfigValue.isMySQL) {
-			serviceattrname2colnumid = ConstructSerialNum.getSerialIDNew(
-					"serviceattrname2colnum", "serviceattrname2colnumid",
-					bussinessFlag);
-		}
-		// 获取属性名称表的序列值，并绑定参数
-		lstpara.add(serviceattrname2colnumid);
-		// 绑定属性名称参数
-		lstpara.add(name);
-		// 绑定语义关键词信息
-		lstpara.add(semanticskeyword);
-		// 绑定列归属参数
-		lstpara.add(container);
-		// 绑定列值参数
-		lstpara.add(column);
-		// 绑定词类id参数
-		lstpara.add(wordclassid);
-		// 绑定业务id参数
-		lstpara.add(serviceid);
-		// 绑定业务参数
-		lstpara.add(service);
-		// 执行SQL语句，绑定事务，返回事务处理结果
-		int c = Database.executeNonQuery(sql, lstpara.toArray());
-
-		// 文件日志
-		GlobalValue.myLog.info(sql + "#" + lstpara);
-		return c;
-	}
-	
-	/**
-	 * 新增属性名称
-	 * 
-	 * @param serviceid参数业务id
-	 * @param service参数业务
-	 * @param name参数属性名称
-	 * @param column参数列值
-	 * @param wordclass参数词类名称
-	 * @return 新增是否成功
-	 */
 	public static int InsertAttrName(User user, String serviceid, String service,
 			String name, String semanticskeyword, String container,
 			String column, String wordclass, String wordclassid,
@@ -442,8 +385,18 @@ public class CommonLibServiceAttrDao {
 	 * @param column参数对应列值
 	 * @return rs
 	 */
-	public static int DeleteAttrName(String serviceid, String attrnameid,
+	public static int DeleteAttrName(User user, String serviceid, String attrnameid,
 			String column) {
+		String checkSql = "select * from serviceattrname2colnum where serviceattrname2colnumid=?";
+		Result rs = Database.executeQuery(checkSql, attrnameid);
+		String service = "";
+		String name = "";
+		if (rs != null && rs.getRowCount() > 0){
+			service = rs.getRows()[0].get("service").toString();
+			name = rs.getRows()[0].get("name").toString();
+		}
+		
+		
 		// 定义多条SQL语句集合
 		List<String> lstSql = new ArrayList<String>();
 		// 定义多条SQL语句定义的绑定参数集合
@@ -472,6 +425,12 @@ public class CommonLibServiceAttrDao {
 		lstSql.add(sql);
 		// 将对应的绑定参数集合放入集合中
 		lstLstpara.add(lstpara);
+		
+		// 将操作日志SQL语句放入集合中
+		lstSql.add(GetConfigValue.LogSql());
+		lstLstpara.add(GetConfigValue.LogParam(user.getUserIP(), user
+				.getUserID(), user.getUserName(), " ", service,
+				"删除信息列", name, "SERVICEATTRNAME2COLNUM"));
 
 		// 文件日志
 		GlobalValue.myLog.info(sql + "#" + lstpara);
@@ -526,9 +485,33 @@ public class CommonLibServiceAttrDao {
 	 * @param name参数属性名称
 	 * @return 修改返回的json串
 	 */
-	public static int ModifyAttrName(String serviceid, String attrnameid,
+	public static int ModifyAttrName(User user, String serviceid, String attrnameid,
 			String name, String semanticskeyword, String container,
 			String checkway) {
+		
+		String checkSql = "select * from serviceattrname2colnum where serviceattrname2colnumid=?";
+		Result rs = Database.executeQuery(checkSql, attrnameid);
+		String service = "";
+		String nameOld = "";
+		String semanticskeywordOld = "";
+		String containerOld = "";
+		String checkwayOld = "";
+		if (rs != null && rs.getRowCount() > 0){
+			service = rs.getRows()[0].get("service").toString();
+			nameOld = rs.getRows()[0].get("name").toString();
+			// 语义关键词
+			semanticskeywordOld = rs.getRows()[0].get("SEMANTICSKEYWORD").toString();
+			// 列归属
+			containerOld = rs.getRows()[0].get("CONTAINER").toString();
+			// 数据约束
+			checkwayOld = rs.getRows()[0].get("checkway").toString();
+		}
+		
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句定义的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		
 		// 定义更新属性名称的SQL语句
 		String sql = "update serviceattrname2colnum set name=?,semanticskeyword=?,container=?,checkway=? where serviceattrname2colnumid=? and serviceid=?";
 		// 定义绑定参数集合
@@ -545,8 +528,22 @@ public class CommonLibServiceAttrDao {
 		lstpara.add(attrnameid);
 		// 绑定业务id参数
 		lstpara.add(serviceid);
+		
+		lstSql.add(sql);
+		lstLstpara.add(lstpara);
+		
+		// 将操作日志SQL语句放入集合中
+		lstSql.add(GetConfigValue.LogSql());
+		lstLstpara.add(GetConfigValue.LogParam(user.getUserIP(), user
+				.getUserID(), user.getUserName(), " ", service,
+				"更新信息列", nameOld + "->" + name + "," 
+				+ semanticskeywordOld + "->" + semanticskeyword + ","
+				+ containerOld + "->" + container + ","
+				+ checkwayOld + "->" + checkway , "SERVICEATTRNAME2COLNUM"));
 		// 执行SQL语句，绑定事务，返回事务处理结果
-		int c = Database.executeNonQuery(sql, lstpara.toArray());
+		int c = Database.executeNonQueryTransaction(lstSql, lstLstpara);
+		
+		
 		// 文件日志
 		GlobalValue.myLog.info(sql + "#" + lstpara);
 		return c;
@@ -703,6 +700,16 @@ public class CommonLibServiceAttrDao {
 
 		// 文件日志
 		GlobalValue.myLog.info(sql + "#" + lstpara);
+		
+		if (GetConfigValue.enableDBFun) {
+			// 存储过程
+			lstSql.add("call P_WORDADD(?)");
+			// 定义绑定参数集合
+			lstpara = new ArrayList<Object>();
+			lstpara.add(wordid);
+			lstLstpara.add(lstpara);
+		}
+		
 		// 生成操作日志记录
 		String logSql = "";
 		if (GetConfigValue.isMySQL) {
@@ -870,10 +877,22 @@ public class CommonLibServiceAttrDao {
 		List<String> lstSql = new ArrayList<String>();
 		// 定义多条SQL语句对应的绑定参数集合
 		List<List<?>> lstLstpara = new ArrayList<List<?>>();
-		// 定义删除词条的SQL语句
-		String sql = "delete from word where wordid=?";
 		// 定义绑定参数集合
 		List<Object> lstpara = new ArrayList<Object>();
+		
+		if (GetConfigValue.enableDBFun) {
+			// 存储过程
+			lstSql.add("call P_WORDDELETE(?)");
+			// 定义绑定参数集合
+			lstpara = new ArrayList<Object>();
+			lstpara.add(attrvalueid);
+			lstLstpara.add(lstpara);
+		}
+		// 定义绑定参数集合
+		lstpara = new ArrayList<Object>();
+		
+		// 定义删除词条的SQL语句
+		String sql = "delete from word where wordid=?";
 		// 绑定属性值id参数
 		lstpara.add(attrvalueid);
 		// 将SQL语句放入集合中
@@ -1107,7 +1126,7 @@ public class CommonLibServiceAttrDao {
 	 * @param attrArr参数属性值数组
 	 * @return 新增返回的json串
 	 */
-	public static int InsertAttr(String serviceid, String service,
+	public static int InsertAttr(User user, String serviceid, String service,
 			String[] attrArr, String serviceType) {
 		if ("电信行业->电信集团->指令系统应用".equals(serviceType)
 				&& "短信指令信息表".equals(service)) {
@@ -1116,8 +1135,7 @@ public class CommonLibServiceAttrDao {
 			// 定义绑定参数集合
 			List<Object> lstpara = new ArrayList<Object>();
 			// 定义获取属性名称对应的列值的SQL语句
-			sql
-					.append("select * from serviceattrname2colnum where serviceid=? and checkway is not null");
+			sql.append("select * from serviceattrname2colnum where serviceid=? ");
 			// 绑定业务id参数
 			lstpara.add(serviceid);
 			// 执行SQL语句，获取相应的数据源
@@ -1126,19 +1144,24 @@ public class CommonLibServiceAttrDao {
 
 			// 定义存放数据约束和对应列值的map集合
 			Map<String, String> columncheckwayMap = new HashMap<String, String>();
+			// 定义存放属性名称和对应列值的map集合
+			Map<String, Integer> attrnameToColumnMap = new HashMap<String, Integer>();
 			// 判断数据源不为null且含有数据
 			if (rs != null && rs.getRowCount() > 0) {
 				// 循环遍历数据源
 				for (int i = 0; i < rs.getRowCount(); i++) {
 					// 获取列值
 					String column = rs.getRows()[i].get("columnnum").toString();
+					String name = rs.getRows()[i].get("name").toString();
 					// 获取数据约束
-					String checkway = rs.getRows()[i].get("checkway")
-							.toString();
+					String checkway = rs.getRows()[i].get("checkway") == null ? ""
+							: rs.getRows()[i].get("checkway").toString();
 
 					if (!"".equals(checkway)) {// 存在数据约束
 						columncheckwayMap.put(column, checkway);
 					}
+					attrnameToColumnMap.put(name, Integer.valueOf(column));
+
 				}
 				// 进行数据重复验证
 				if (columncheckwayMap.size() > 0) {
@@ -1164,8 +1187,43 @@ public class CommonLibServiceAttrDao {
 					}
 				}
 			}
+			// 电信集团短厅定制需求，数据处理
+			if (attrnameToColumnMap.containsKey("业务名")
+					&& attrnameToColumnMap.containsKey("操作类型")
+					&& attrnameToColumnMap.containsKey("指令")
+					&& attrnameToColumnMap.containsKey("cityName")
+					&& attrnameToColumnMap.containsKey("cityId")
+					&& attrnameToColumnMap.containsKey("isInstruction")) {
+				Object value01 = attrArr[attrnameToColumnMap.get("业务名")-1];
+				Object value02 = attrArr[attrnameToColumnMap.get("操作类型")-1];
+				Object value03 = attrArr[attrnameToColumnMap.get("指令")-1];
+				Object value04 = attrArr[attrnameToColumnMap.get("cityName")-1];
+				Object value05 = attrArr[attrnameToColumnMap.get("cityId")-1];
+				Object value06 = attrArr[attrnameToColumnMap.get("isInstruction")-1];
+				if (null == value01 || null == value02 || null == value03
+						|| null == value04 || null == value05
+						|| null == value06 || "".equals(value01) || "".equals(value02) || "".equals(value03)
+						|| "".equals(value04) || "".equals(value05)
+						|| "".equals(value06)) {
+					return -7;
+				} else {
+					Pattern pattern = Pattern.compile("\\d{6}");
+					if (!pattern.matcher(value05.toString()).matches()){
+						return -5;
+					}else if (!"true"
+							.equals(value06.toString().toLowerCase()) && !"false"
+							.equals(value06.toString().toLowerCase())){
+						return -6;
+					}
+				}
+			} 
 		}
 
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		
 		// 定义SQL语句
 		StringBuilder sql = new StringBuilder();
 		// 定义绑定参数集合
@@ -1213,9 +1271,19 @@ public class CommonLibServiceAttrDao {
 		sql.append("?)");
 		// 绑定状态参数
 		lstpara.add("0");
+		
+		lstSql.add(sql.toString());
+		lstLstpara.add(lstpara);
+		
+		// 将操作日志SQL语句放入集合中
+		lstSql.add(GetConfigValue.LogSql());
+		lstLstpara.add(GetConfigValue.LogParam(user.getUserIP(), user
+				.getUserID(), user.getUserName(), " ", service,
+				"新增信息", Arrays.toString(attrArr).length() > 2000 ? Arrays.toString(attrArr).substring(0, 2000) : Arrays.toString(attrArr), "SERVICEORPRODUCTINFO"));
+		
 		// 执行SQL语句，绑定事务，返回事务处理
-		int c = Database.executeNonQuery(sql.toString(), lstpara.toArray());
-
+		int c = Database.executeNonQueryTransaction(lstSql, lstLstpara);
+		
 		// 文件日志
 		GlobalValue.myLog.info(sql + "#" + lstpara);
 
@@ -1228,16 +1296,44 @@ public class CommonLibServiceAttrDao {
 	 * @param attrid参数服务或产品信息id
 	 * @return 删除返回的json串
 	 */
-	public static int DeleteAttr(String attrid) {
+	public static int DeleteAttr(String attrid, User user) {
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		
+		String selectSql = "select * from serviceorproductinfo where serviceorproductinfoid in (";
+		// 将id按照逗号拆分
+		String[] attridArr = attrid.split(",");
+		// 循环遍历id数组
+		for (int i = 0; i < attridArr.length; i++) {
+			if (i != attridArr.length - 1) {
+				// 除了最后一个不加逗号，其他都加逗号
+				selectSql += "?,";
+			} else {
+				// 最后一个加上右括号，将SQL语句补充完整
+				selectSql += "?)";
+			}
+			// 绑定id参数
+			lstpara.add(attridArr[i]);
+		}
+		Result selectRs = Database.executeQuery(selectSql, lstpara.toArray());
+		String service = "";
+		if (selectRs != null && selectRs.getRowCount() > 0){
+			service = selectRs.getRows()[0].get("service").toString();
+		}
+		
 		// 定义SQL语句
 		StringBuilder sql = new StringBuilder();
 		// 定义绑定参数集合
-		List<Object> lstpara = new ArrayList<Object>();
+		lstpara = new ArrayList<Object>();
 		// 定义删除服务或产品信息的SQL语句
-		sql
-				.append("delete from serviceorproductinfo where serviceorproductinfoid in (");
+		sql.append("delete from serviceorproductinfo where serviceorproductinfoid in (");
 		// 将id按照逗号拆分
-		String[] attridArr = attrid.split(",");
+//		String[] attridArr = attrid.split(",");
 		// 循环遍历id数组
 		for (int i = 0; i < attridArr.length; i++) {
 			if (i != attridArr.length - 1) {
@@ -1250,8 +1346,19 @@ public class CommonLibServiceAttrDao {
 			// 绑定id参数
 			lstpara.add(attridArr[i]);
 		}
+		
+		lstSql.add(sql.toString());
+		lstLstpara.add(lstpara);
+		
+		
+		// 将操作日志SQL语句放入集合中
+		lstSql.add(GetConfigValue.LogSql());
+		lstLstpara.add(GetConfigValue.LogParam(user.getUserIP(), user
+				.getUserID(), user.getUserName(), " ", service,
+				"删除信息", attrid, "SERVICEORPRODUCTINFO"));
+		
 		// 执行SQL语句，绑定事务，返回事务处理结果
-		int c = Database.executeNonQuery(sql.toString(), lstpara.toArray());
+		int c = Database.executeNonQueryTransaction(lstSql, lstLstpara);
 
 		// 文件日志
 		GlobalValue.myLog.info(sql + "#" + lstpara);
@@ -1344,7 +1451,7 @@ public class CommonLibServiceAttrDao {
 	 * @return 更新返回的json串
 	 */
 	public static int UpdateAttr(String[] attrArr, String attrid,
-			String serviceType, String serviceid) {
+			String serviceType, String serviceid, User user) {
 		if ("电信行业->电信集团->指令系统应用".equals(serviceType)) {
 			// 定义SQL语句
 			StringBuilder sql = new StringBuilder();
@@ -1382,10 +1489,11 @@ public class CommonLibServiceAttrDao {
 				}
 				// 进行数据重复验证
 				if (columncheckwayMap.size() > 0) {
-					String checkwaySql = "select * from serviceorproductinfo where serviceid=?";
+					String checkwaySql = "select * from serviceorproductinfo where serviceid=? and SERVICEORPRODUCTINFOID !=?";
 					// 定义绑定参数集合
 					List<Object> checkwaylstpara = new ArrayList<Object>();
 					checkwaylstpara.add(serviceid);
+					checkwaylstpara.add(attrid);
 
 					for (Map.Entry<String, String> entry : columncheckwayMap
 							.entrySet()) {
@@ -1421,7 +1529,9 @@ public class CommonLibServiceAttrDao {
 						.get("isInstruction")-1];
 				if (null == value01 || null == value02 || null == value03
 						|| null == value04 || null == value05
-						|| null == value06) {
+						|| null == value06 || "".equals(value01) || "".equals(value02) || "".equals(value03)
+						|| "".equals(value04) || "".equals(value05)
+						|| "".equals(value06)) {
 					return -7;
 				} else {
 					Pattern pattern = Pattern.compile("\\d{6}");
@@ -1436,11 +1546,37 @@ public class CommonLibServiceAttrDao {
 			} 
 
 		}
-
+		String selectSql = "select * from serviceorproductinfo where serviceorproductinfoid in (";
+		// 定义绑定参数集合
+		ArrayList<Object> lstpara = new ArrayList<Object>();
+		// 将id按照逗号拆分
+		String[] attridArr = attrid.split(",");
+		// 循环遍历id数组
+		for (int i = 0; i < attridArr.length; i++) {
+			if (i != attridArr.length - 1) {
+				// 除了最后一个不加逗号，其他都加逗号
+				selectSql += "?,";
+			} else {
+				// 最后一个加上右括号，将SQL语句补充完整
+				selectSql += "?)";
+			}
+			// 绑定id参数
+			lstpara.add(attridArr[i]);
+		}
+		Result selectRs = Database.executeQuery(selectSql, lstpara.toArray());
+		String service = "";
+		if (selectRs != null && selectRs.getRowCount() > 0){
+			service = selectRs.getRows()[0].get("service").toString();
+		}
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
 		// 定义SQL语句
 		StringBuilder sql = new StringBuilder();
 		// 定义绑定参数集合
-		ArrayList<Object> lstpara = new ArrayList<Object>();
+		lstpara = new ArrayList<Object>();
+//		ArrayList<Object> lstpara = new ArrayList<Object>();
 		// 定义新增服务或产品信息的SQL语句
 		sql.append("update serviceorproductinfo set ");
 		// 循环遍历属性值数组
@@ -1461,11 +1597,21 @@ public class CommonLibServiceAttrDao {
 		lstpara.add("0");
 		// 绑定服务或产品信息id参数
 		lstpara.add(attrid);
-		// 执行SQL语句，绑定事务，返回事务处理
-		int c = Database.executeNonQuery(sql.toString(), lstpara.toArray());
-
+		
 		// 文件日志
 		GlobalValue.myLog.info(sql + "#" + lstpara);
+		lstSql.add(sql.toString());
+		lstLstpara.add(lstpara);
+		
+		
+		// 将操作日志SQL语句放入集合中
+		lstSql.add(GetConfigValue.LogSql());
+		lstLstpara.add(GetConfigValue.LogParam(user.getUserIP(), user
+				.getUserID(), user.getUserName(), " ", service,
+				"更新信息", org.apache.commons.lang.StringUtils.join(lstpara, ",").length()>2000?org.apache.commons.lang.StringUtils.join(lstpara, ",").substring(0, 2000):org.apache.commons.lang.StringUtils.join(lstpara, ","), "SERVICEORPRODUCTINFO"));
+		
+		// 执行SQL语句，绑定事务，返回事务处理
+		int c =  Database.executeNonQueryTransaction(lstSql, lstLstpara);
 
 		return c;
 	}

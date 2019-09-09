@@ -631,8 +631,8 @@ public class CommonLibQueryManageDAO {
 		// 获得商家标识符
 		String bussinessFlag = CommonLibMetafieldmappingDAO
 				.getBussinessFlag(user.getIndustryOrganizationApplication());
-		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID) values(?,?,?,?,?)";
-		String updateSql = " update querymanage set CITY=? , EDITTIME=sysdate where QUERY=? and KBDATAID=? ";
+		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,QUERYTYPE) values(?,?,?,?,?,0)";
+		String updateSql = " update querymanage set CITY=? , EDITTIME=sysdate where QUERY=? and KBDATAID=? and QUERYTYPE = 0";
 		Map<String, String> map = getCustomerQueryDic(normalQuery);
 		Map<String, Map<String, String>> insertOrUpdateDic = getCustomerQueryInsertOrUpdateDic(
 				map, customerQuery, cityCode);
@@ -1327,7 +1327,7 @@ public class CommonLibQueryManageDAO {
 		lstpara.add((page - 1) * rows);
 
 		sql = sql
-				+ "  ) k on s.serviceid = k.serviceid  inner join (select * from querymanage where city like ? and query like ? " +statusSql+istrainSql+ ") q  on k.kbdataid = q.kbdataid) aa order by aa.id desc   )t  where rownum<= ? ) t1 where t1.rn>?";
+				+ "  ) k on s.serviceid = k.serviceid  inner join (select * from querymanage where (querytype = 0 or querytype is null) and city like ? and query like ? " +statusSql+istrainSql+ ") q  on k.kbdataid = q.kbdataid) aa order by aa.id desc   )t  where rownum<= ? ) t1 where t1.rn>?";
 
 		
 		//文件日志
@@ -2806,7 +2806,7 @@ public class CommonLibQueryManageDAO {
 	 * @param customerquery 客户问
 	 * @return
 	 */
-	public static Result findCustomerquery(List<String> customerquery,String serviceType,List<String> roleId,List<String> cityList){
+	public static Result findCustomerquery(List<String> customerquery,String serviceType,List<String> roleId,List<String> cityList, int querytype){
 		StringBuilder sql = new StringBuilder();
 		sql.append(" select k.serviceid,k.abstract ,q.query from kbdata k,querymanage q where k.serviceid in  ");
 		sql.append(" ( select resourceid from ROLE_RESOURCE where resourcetype =lower('querymanage') and servicetype = ? ");
@@ -2826,6 +2826,7 @@ public class CommonLibQueryManageDAO {
 			}
 			sql.append(" ) ");
 		}
+		sql.append( " or q.querytype  = " + querytype + " ");
 		if(cityList!=null && cityList.size() > 0){
 			for (int j = 0; j < cityList.size(); j++) {
 				if (j == 0) {
@@ -4272,4 +4273,235 @@ public class CommonLibQueryManageDAO {
 		
 		return rs;
 	}
+	
+	/**
+	 * 新增排除问题
+	 * @param normalQuery 标准问
+	 * @param customerQuery 排除问
+	 * @param cityCode 地市编码
+	 * @param user 用户信息
+	 * @param removequerystatus 是否严格排除
+	 * @return
+	 */
+	public static int addRemoveQuery(String normalQuery,
+			String customerQuery, String cityCode, User user, String removequerystatus) {
+		List<String> lstsql = new ArrayList<String>();
+		List<List<?>> lstlstpara = new ArrayList<List<?>>();
+		List<Object> lstpara = new ArrayList<Object>();
+		int rs = -1;
+		String querymanageId = "";
+		// 获得商家标识符
+		String bussinessFlag = CommonLibMetafieldmappingDAO
+				.getBussinessFlag(user.getIndustryOrganizationApplication());
+		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID, QUERYTYPE, ISSTRICTEXCLUSION) values(?,?,?,?,?,1,?)";
+		String updateSql = " update querymanage set CITY=? , EDITTIME=sysdate where QUERY=? and KBDATAID=? and querytype=1";
+		Map<String, String> map = getCustomerQueryDic(normalQuery);
+		Map<String, Map<String, String>> insertOrUpdateDic = getCustomerQueryInsertOrUpdateDic(
+				map, customerQuery, cityCode);
+		if (insertOrUpdateDic.size() > 0) {
+			for (Map.Entry<String, Map<String, String>> entry : insertOrUpdateDic
+					.entrySet()) {
+				String type = entry.getKey();
+				if ("insert".equals(type)) {// insert
+					for (Map.Entry<String, String> insertDic : entry.getValue()
+							.entrySet()) {
+						String query = insertDic.getKey();
+						String city = insertDic.getValue();
+						if (GetConfigValue.isOracle) {
+							querymanageId = ConstructSerialNum
+									.GetOracleNextValNew("seq_querymanage_id",
+											bussinessFlag);
+						} else if (GetConfigValue.isMySQL) {
+							querymanageId = ConstructSerialNum.getSerialIDNew(
+									"querymanage", "id", bussinessFlag);
+						}
+						lstpara = new ArrayList<Object>();
+						lstpara.add(querymanageId);
+						lstpara.add(normalQuery);
+						lstpara.add(query);
+						lstpara.add(city);
+						lstpara.add(user.getUserID());
+						lstpara.add(StringUtil.isEmpty(removequerystatus) ? "否" : removequerystatus);
+						lstsql.add(insertSql);
+						lstlstpara.add(lstpara);
+						// 日志 insert into operationlog(ip,brand,service,operation,city,workerid,workername,object,tablename
+						String[] serviceArr = getServiceByKbdataid(normalQuery);
+						lstsql.add(getInsertLogSql());
+						lstlstpara.add(
+								getSQLParams(user.getUserIP(),
+									user.getBrand(), 
+									serviceArr[0], 
+									"增加排除问题",
+									" ", 
+									user.getUserID(),
+									user.getUserName(),
+									query,
+									"QUERYMANAGE"));
+						
+					}
+				} else {// update
+					for (Map.Entry<String, String> insertDic : entry.getValue()
+							.entrySet()) {
+						String query = insertDic.getKey();
+						String city = insertDic.getValue();
+						lstpara = new ArrayList<Object>();
+						lstpara.add(city);
+						lstpara.add(query);
+						lstpara.add(normalQuery);
+						lstsql.add(updateSql);
+						lstlstpara.add(lstpara);
+						// 日志 insert into operationlog(ip,brand,service,operation,city,workerid,workername,object,tablename
+						String[] serviceArr = getServiceByKbdataid(normalQuery);
+						lstsql.add(getInsertLogSql());
+						lstlstpara.add(
+								getSQLParams(user.getUserIP(),
+									user.getBrand(), 
+									serviceArr[0], 
+									"更新排除问题",
+									" ", 
+									user.getUserID(),
+									user.getUserName(),
+									query,
+									"QUERYMANAGE"));
+					}
+				}
+			}
+			return Database.executeNonQueryTransaction(lstsql, lstlstpara);
+		} else {
+			rs = 1;// 新增排除问题已存在默认插入成功，后续优化给出提示 TODO
+		}
+
+		return rs;
+	}
+	/**
+	 *@description 获取排除问题下客户问题详情
+	 *@param serviceid
+	 *@param kbdataid
+	 *@param customerQuery
+	 *@param cityCode
+	 *@param page
+	 *@param rows
+	 *@return
+	 *@returnType Result
+	 */
+	public static Result selectRemoveQuery(String serviceid, String kbdataid,
+			String customerQuery, String cityCode,String isTrain, String removequerystatus, int page, int rows) {
+		Result rs = null;
+		List<Object> lstpara = new ArrayList<Object>();
+		
+		String sql = " select * from (select t.*,rownum rn from ( "
+				+ " select * from (select s.service,s.brand,k.kbdataid,k.abstract,k.city abscity,k.responsetype,k.interacttype,k.topic, q.query,q.city ,q.id ,q.status ,q.result, q.istrain from (select * from service where serviceid=? ) s  "
+				+ " inner join(select * from kbdata where  1>0  ";
+
+		lstpara.add(serviceid);
+		if(!"".equals(kbdataid)&& kbdataid!= null){
+			sql = sql
+			+ "  and ( kbdataid = ? ) ";
+			lstpara.add(kbdataid);
+		}
+
+		if (!"".equals(cityCode) && cityCode != null) {
+			if("全国".equals(cityCode)){
+				cityCode="";
+			}else if (cityCode.endsWith("0000")) {// 地市为省级加载省级下面的所有内容
+				cityCode = cityCode.replace("0000", "");
+			}
+			lstpara.add("%" + cityCode + "%");
+		} else {
+			lstpara.add("%%");
+		}
+		lstpara.add("%" + customerQuery + "%");
+		
+		String statusSql, istrainSql;
+		if(StringUtils.isBlank(removequerystatus)){ // 全部
+			statusSql = "";
+		}else if(removequerystatus.equals("none")) { // 未理解
+			statusSql = " and status is null";
+		}else {
+			lstpara.add(removequerystatus);
+			statusSql = " and isstrictexclusion = ?";
+		}
+		if(StringUtils.isBlank(isTrain)){
+			istrainSql = "";
+		}else {
+			lstpara.add(StringUtils.trim(isTrain));
+			istrainSql = " and istrain = ?";
+		}
+		
+		lstpara.add(page * rows);
+		lstpara.add((page - 1) * rows);
+
+		sql = sql
+				+ "  ) k on s.serviceid = k.serviceid  inner join (select * from querymanage where querytype = 1 and city like ? and query like ? " +statusSql+istrainSql+ ") q  on k.kbdataid = q.kbdataid) aa order by aa.id desc   )t  where rownum<= ? ) t1 where t1.rn>?";
+
+		
+		//文件日志
+		GlobalValue.myLog.info( sql + "#" + lstpara );
+		return Database.executeQuery(sql, lstpara.toArray());
+	}
+	/**
+	 *@description 获取标准问题下排除问题记录数
+	 *@param serviceid
+	 *@param kbdataid
+	 *@param customerQuery
+	 *@param cityCode
+	 *@return
+	 *@returnType int
+	 */
+	public static int getRemoveQueryCount(String serviceid,String kbdataid,
+			String customerQuery, String cityCode, String isTrain, String removequerystatus) {
+		int count = -1;
+		Result rs = null;
+		List<Object> lstpara = new ArrayList<Object>();
+		String sql = "select count(*) count  from (select * from service where serviceid=? ) s  "
+				+ " inner join (select * from kbdata where 1>0  ";
+		lstpara.add(serviceid);
+		if(!"".equals(kbdataid)&& kbdataid!= null){
+			sql = sql
+			+ "  and ( kbdataid = ? ) ";
+			lstpara.add(kbdataid);
+		}
+
+		if (!"".equals(cityCode) && cityCode != null) {
+			if("全国".equals(cityCode)){
+				cityCode="";
+			}else if (cityCode.endsWith("0000")) {// 地市为省级加载省级下面的所有内容
+				cityCode = cityCode.replace("0000", "");
+			}
+			lstpara.add("%" + cityCode + "%");
+		} else {
+			lstpara.add("%%");
+		}
+		lstpara.add("%" + customerQuery + "%");
+		
+		String statusSql, istrainSql;
+		
+		if(StringUtils.isBlank(removequerystatus)){ // 全部
+			statusSql = "";
+		}else if(removequerystatus.equals("none")) { // 未理解
+			statusSql = " and status is null";
+		}else {
+			lstpara.add(removequerystatus);
+			statusSql = " and isstrictexclusion = ?";
+		}
+		if(StringUtils.isBlank(isTrain)){ // 全部
+			istrainSql = "";
+		}else {
+			lstpara.add(StringUtils.trim(isTrain));
+			istrainSql = " and istrain = ?";
+		}
+		
+		sql = sql
+				+ "  ) k on s.serviceid = k.serviceid  inner join (select * from querymanage where querytype = 1 and city like ? and query like ? " + statusSql + istrainSql + ") q  on k.kbdataid = q.kbdataid";
+		rs = Database.executeQuery(sql, lstpara.toArray());
+		
+		//文件日志
+		GlobalValue.myLog.info( sql + "#" + lstpara );
+		
+		if (rs != null && rs.getRowCount() > 0) {
+			count = Integer.valueOf(rs.getRows()[0].get("count").toString());
+		}
+		return count;
+	}
+
 }

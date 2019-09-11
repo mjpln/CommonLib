@@ -633,7 +633,7 @@ public class CommonLibQueryManageDAO {
 				.getBussinessFlag(user.getIndustryOrganizationApplication());
 		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,QUERYTYPE) values(?,?,?,?,?,0)";
 		String updateSql = " update querymanage set CITY=? , EDITTIME=sysdate where QUERY=? and KBDATAID=? and QUERYTYPE = 0";
-		Map<String, String> map = getCustomerQueryDic(normalQuery);
+		Map<String, String> map = getCustomerQueryDic(normalQuery,0);
 		Map<String, Map<String, String>> insertOrUpdateDic = getCustomerQueryInsertOrUpdateDic(
 				map, customerQuery, cityCode);
 		if (insertOrUpdateDic.size() > 0) {
@@ -774,10 +774,11 @@ public class CommonLibQueryManageDAO {
 	 *@return
 	 *@returnType Map<String,String>
 	 */
-	public static Map<String, String> getCustomerQueryDic(String normalQueryId) {
+	public static Map<String, String> getCustomerQueryDic(String normalQueryId,int querytype) {
 		Map<String, String> map = new HashMap<String, String>();
 		String sql = "select * from querymanage where kbdataid = "
 				+ normalQueryId;
+		sql += " and querytype="+querytype;
 		Result rs = Database.executeQuery(sql);
 		if (rs != null && rs.getRowCount() > 0) {
 			if (rs != null && rs.getRowCount() > 0) {
@@ -938,7 +939,7 @@ public class CommonLibQueryManageDAO {
 		}
 		
 		sql = sql
-				+ "  ) k on s.serviceid = k.serviceid  inner join (select * from querymanage where city like ? and query like ? " + statusSql + istrainSql + ") q  on k.kbdataid = q.kbdataid";
+				+ "  ) k on s.serviceid = k.serviceid  inner join (select * from querymanage where querytype=0 and city like ? and query like ? " + statusSql + istrainSql + ") q  on k.kbdataid = q.kbdataid";
 		rs = Database.executeQuery(sql, lstpara.toArray());
 		
 		//文件日志
@@ -2174,8 +2175,8 @@ public class CommonLibQueryManageDAO {
 	 *@return 
 	 *@returnType Result 
 	 */
-	public static Result getQuery(String serviceid){
-		String sql = "select k.kbdataid, k.abstract,k.city abscity,q.id,q.query,q.city from (select * from service where serviceid ="+serviceid+" ) s inner join  kbdata k on s.serviceid = k.serviceid left join querymanage q  on k.kbdataid=q.kbdataid";
+	public static Result getQuery(String serviceid,int querytype){
+		String sql = "select k.kbdataid, k.abstract,k.city abscity,q.id,q.query,q.city from (select * from service where serviceid ="+serviceid+" ) s inner join  kbdata k on s.serviceid = k.serviceid left join querymanage q  on k.kbdataid=q.kbdataid and q.querytype="+querytype;
 	    
 		//文件日志
 		GlobalValue.myLog.info( sql );
@@ -2364,7 +2365,7 @@ public class CommonLibQueryManageDAO {
 	 *@return 
 	 *@returnType int 
 	 */
-	public static int importQuery(Map<ImportNormalqueryBean, Map<String, List<String>>> info ,Map<String, Map<String, String>> map,List<String> serviceCityList,String serviceid,String bussinessFlag,String workerid) {
+	public static int importQuery(Map<ImportNormalqueryBean, Map<String, List<String>>> info ,Map<String, Map<String, String>> map,List<String> serviceCityList,String serviceid,String bussinessFlag,String workerid,int querytype) {
 		// 定义多条SQL语句集合
 		List<String> lstSql = new ArrayList<String>();
 		// 定义多条SQL语句对应的绑定参数集合
@@ -2373,7 +2374,11 @@ public class CommonLibQueryManageDAO {
 		List<Object> lstpara = new ArrayList<Object>();
 		String sql = "";
 		String querymanageId="";
-		
+		//是否严格排除状态
+		String removeQueryStatus = "";
+		if(1 == querytype){//排除问题，默认严格排除状态为否
+			removeQueryStatus = "否";
+		}
 		// 翻转info
 		List<ImportNormalqueryBean> infoKeys = new ArrayList<ImportNormalqueryBean>(info.keySet());
 		Collections.reverse(infoKeys);
@@ -2423,11 +2428,12 @@ public class CommonLibQueryManageDAO {
 							}else{//省级用户
 								if (tempMap.containsKey(customerquery)) {// 标准问下存在客户问，补充客户问地市并做修改
 									// 修改客户问题cityid
-									sql = "update querymanage set  city=?  where query =? and kbdataid =?  ";
+									sql = "update querymanage set  city=?  where query =? and kbdataid =? and querytype=? ";
 									lstpara = new ArrayList<Object>();
 									lstpara.add(newCityCode);
 									lstpara.add(customerquery);
 									lstpara.add(kbdataid);
+									lstpara.add(querytype);
 									lstSql.add(sql);
 									lstLstpara.add(lstpara);
 									
@@ -2459,7 +2465,7 @@ public class CommonLibQueryManageDAO {
 									GlobalValue.myLog.info(workerid + "#" + sql + "#" + lstpara );
 									
 								} else {// 标准问下不存在客户问题，直接insert
-								  sql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID) values(?,?,?,?,?)";
+								  sql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,QUERYTYPE,ISSTRICTEXCLUSION) values(?,?,?,?,?,?,?)";
 								 
 								  if (GetConfigValue.isOracle) {
 										querymanageId = ConstructSerialNum
@@ -2475,6 +2481,8 @@ public class CommonLibQueryManageDAO {
 									lstpara.add(customerquery);
 									lstpara.add(StringUtils.join(cityList.toArray(), ","));
 									lstpara.add(workerid);
+									lstpara.add(querytype);
+									lstpara.add(removeQueryStatus);
 									lstSql.add(sql);
 									lstLstpara.add(lstpara);
 									
@@ -2513,11 +2521,12 @@ public class CommonLibQueryManageDAO {
 								.toArray(), ",");
 						
 						// 修改标准问扩展问地市
-						sql = "update querymanage set  city=?  where query =? and kbdataid =?  ";
+						sql = "update querymanage set  city=?  where query =? and kbdataid =? and querytype=? ";
 						lstpara = new ArrayList<Object>();
 						lstpara.add(newabsCityCode);
 						lstpara.add(normalquery);
 						lstpara.add(kbdataid);
+						lstpara.add(querytype);
 						lstSql.add(sql);
 						lstLstpara.add(lstpara);
 						
@@ -2568,7 +2577,7 @@ public class CommonLibQueryManageDAO {
 					 */
 
 					// 存在客户问时插入
-					String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID) values(?,?,?,?,?)";
+					String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,QUERYTYPE,ISSTRICTEXCLUSION) values(?,?,?,?,?,?,?)";
 					for (Map.Entry<String, List<String>> e : queryAndCity.entrySet()) {
 						customerquery = e.getKey();
 						
@@ -2599,6 +2608,8 @@ public class CommonLibQueryManageDAO {
 							lstpara.add(customerquery);
 							lstpara.add(cityListStr);
 							lstpara.add(workerid);
+							lstpara.add(querytype);							
+							lstpara.add(removeQueryStatus);
 							lstSql.add(insertSql);
 							lstLstpara.add(lstpara);
 							
@@ -2624,6 +2635,8 @@ public class CommonLibQueryManageDAO {
 					// 修改 START 客户问地市如果没有的话
 					lstpara.add(StringUtils.isEmpty(userCityListString) ? serviceCityListString : userCityListString);
 					lstpara.add(workerid);
+					lstpara.add(querytype);
+					lstpara.add(removeQueryStatus);
 					lstSql.add(insertSql);
 					lstLstpara.add(lstpara);
 					
@@ -2637,7 +2650,7 @@ public class CommonLibQueryManageDAO {
 	}
 	
 	/**
-	 * 到处客户问题
+	 * 导出客户问题|排除问题
 	 * @param serviceid
 	 * @param normalQuery
 	 * @param responseType
@@ -2645,7 +2658,7 @@ public class CommonLibQueryManageDAO {
 	 * @return
 	 */
 	public static Result exportQuery(String serviceid, String normalQuery, String responseType,
-			String interactType){
+			String interactType,int queryType){
 		String sql = "select a.abstract, b.query, a.responsetype, a.interacttype, b.city from kbdata a, querymanage b, service s";
 		sql += " where s.serviceid = ?";
 		sql += " and a.serviceid = s.serviceid";
@@ -2679,6 +2692,7 @@ public class CommonLibQueryManageDAO {
 				lstpara.add("%" + interactType + "%");
 			}
 		}
+		sql +=" and b.querytype = "+ queryType;
 		sql += " order by a.kbdataid desc";
 		//文件日志
 		GlobalValue.myLog.info( sql + "#" + lstpara );
@@ -2808,7 +2822,7 @@ public class CommonLibQueryManageDAO {
 	 */
 	public static Result findCustomerquery(List<String> customerquery,String serviceType,List<String> roleId,List<String> cityList, int querytype){
 		StringBuilder sql = new StringBuilder();
-		sql.append(" select k.serviceid,k.abstract ,q.query from kbdata k,querymanage q where k.serviceid in  ");
+		sql.append(" select k.serviceid,k.abstract ,q.query,q.id queryid,k.kbdataid from kbdata k,querymanage q where k.serviceid in  ");
 		sql.append(" ( select resourceid from ROLE_RESOURCE where resourcetype =lower('querymanage') and servicetype = ? ");
 		sql.append(" and roleid in("
 				+StringUtils.join(roleId.toArray(), ",")
@@ -2826,7 +2840,7 @@ public class CommonLibQueryManageDAO {
 			}
 			sql.append(" ) ");
 		}
-		sql.append( " or q.querytype  = " + querytype + " ");
+		sql.append( " and  q.querytype  = " + querytype + " ");
 		if(cityList!=null && cityList.size() > 0){
 			for (int j = 0; j < cityList.size(); j++) {
 				if (j == 0) {
@@ -3193,15 +3207,15 @@ public class CommonLibQueryManageDAO {
 		return list;
 	}
 
-	/**插入词类词条
+	/**标准问发现新词插入词类词条
 	 * 
 	 * @param info
 	 * @return
 	 */
-	public static String getWordInsert(User user,
+	public static String insertWordClassAndItem(User user,
 			List<List<Object>> info) {
 		
-		String returnMsg = "导入成功！";
+		String returnMsg = "新增成功！";
 		// 定义多条SQL语句集合
 		List<String> lstSql = new ArrayList<String>();
 		// 定义多条SQL语句对应的绑定参数集合
@@ -3215,43 +3229,25 @@ public class CommonLibQueryManageDAO {
 		Map<String, List<String>> map = new LinkedHashMap<String, List<String>>();
 		// Map<wordclass, wordclassid>
 		Map<String, String> nameToIdMap = new LinkedHashMap<String, String>();
-		// wordpat词条
-		List<String> wordclassList = new ArrayList<String>();
 		
 		//获得商家标识符
 		String serviceType = user.getIndustryOrganizationApplication();
 		String bussinessFlag = CommonLibMetafieldmappingDAO.getBussinessFlag(serviceType);
 		
-		// 获取配置表中的channel
-		Result rs = CommonLibMetafieldmappingDAO.getConfigValue("问题库系统默认摘要配置", serviceType);
-		List<String> configValueList = new ArrayList<String>();
-		if(rs!=null && rs.getRowCount() > 0){
-			for (int n = 0; n < rs.getRowCount(); n++) {
-				String value = rs.getRows()[n].get("name").toString();
-				configValueList.add(value);
-			}
-		}else{
-			returnMsg = "缺少默认摘要，请联系管理员！";
-			return returnMsg;
-		}
 		
 		int index = 0;
 		// 遍历每一行
 		for (List<Object> line : info){
 			index++;
-			// 词类
-			String wordclass = line.get(0) == null ? "" : line.get(0).toString().replace("近类", "").trim();
-			// 词条
-			String word = line.get(1) == null ? "" : line.get(1).toString().trim();
+			// 词类，如果包含英文统一转化为大写
+			String wordclass = line.get(0) == null ? "" : line.get(0).toString().replace("近类", "").trim().toUpperCase();
+			// 词条，如果包含英文统一转化为大写
+			String word = line.get(1) == null ? "" : line.get(1).toString().trim().toUpperCase();
 			// 如果词类/词条为空，则略过这一行,词条长度大于4也略过这一行
 			if ("".equals(wordclass)){
 				returnMsg = returnMsg + "<br/>第" + index + "条数据同义词为空！";
 				continue;
 			}
-//			if (word.length() > 4){
-//				returnMsg = returnMsg + "<br/>第" + index + "条同义问字数过长";
-//				continue;
-//			}
 			// 词类未收集
 			if (!nameToIdMap.containsKey(wordclass + "近类")){
 				String checkWordclassSql = "select wordclassid from wordclass where container='基础' and wordclass = '" + wordclass + "近类" + "'";
@@ -3349,8 +3345,6 @@ public class CommonLibQueryManageDAO {
 					// 将对应的绑定参数集合放入集合中
 					lstLstpara.add(lstpara);
 					
-					wordclassList.add(wordclass + "近类");
-					
 					// 新建词类完成后添加对应的词条
 					// 获取词条表的序列值
 					String wordid = "";
@@ -3379,7 +3373,7 @@ public class CommonLibQueryManageDAO {
 					List<String> wordList = new ArrayList<String>();
 					wordList.add(wordclass);
 					
-					if (!"".equals(word)){
+					if (!"".equals(word) && !wordclass.equals(word)){
 						if (GetConfigValue.isOracle) {
 							wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
 						} else if (GetConfigValue.isMySQL) {
@@ -3474,80 +3468,6 @@ public class CommonLibQueryManageDAO {
 			}
 		}
 		
-		// 插入词模
-		if (wordclassList.size() > 0){
-			// 获取kbdataid
-			String kbdataid = "";
-			String kbdata = configValueList.get(0);
-			sql = "select kbdataid from kbdata where abstract=?";
-			Result kbdataRs = Database.executeQuery(sql, kbdata);
-			if (kbdataRs != null && kbdataRs.getRowCount() >0){
-				kbdataid = kbdataRs.getRows()[0].get("kbdataid").toString();
-			}else{
-				returnMsg = "缺少默认摘要，请联系管理员！";
-				return returnMsg;
-			}
-			
-			int num = wordclassList.size()/5;
-			String wordpat = "";
-			for (int i = 0;i < (num-1);i++){
-				wordpat = "";
-				wordpat = "<!" + wordclassList.get(i*5) + ">*"
-						+ "<!" + wordclassList.get(i*5+1) + ">*"
-						+ "<!" + wordclassList.get(i*5+2) + ">*"
-						+ "<!" + wordclassList.get(i*5+3) + ">*"
-						+ "<!" + wordclassList.get(i*5+4) + ">"
-						+ "@1#编者=\"系统默认\"";
-				// 获取词模表的序列值
-				String wordpatid = "";
-				if (GetConfigValue.isOracle) {
-					wordpatid = ConstructSerialNum.GetOracleNextValNew("SEQ_WORDPATTERN_ID",bussinessFlag);
-				} else if (GetConfigValue.isMySQL) {
-					wordpatid = ConstructSerialNum.getSerialIDNew("wordpat", "wordpatid",bussinessFlag);
-				}
-				sql = "insert into wordpat(wordpatid,kbdataid,wordpat,city,wordpattype,autosendswitch,brand,edittime) values (?,?,?,?,?,?,?,sysdate)";
-				lstpara = new ArrayList<Object>();
-				lstpara.add(wordpatid);
-				lstpara.add(kbdataid);
-				lstpara.add(wordpat);
-				lstpara.add("全国");
-				lstpara.add(4);
-				lstpara.add(0);
-				lstpara.add(serviceType.split("->")[1] + "问题库");
-				// 将SQL语句放入集合中
-				lstSql.add(sql);
-				// 将对应的绑定参数集合放入集合中
-				lstLstpara.add(lstpara);
-			}
-			wordpat = "";
-			// 添加剩下的词类
-			for (int i = (num-1)*5 < 0 ? 0 : (num-1)*5;i < wordclassList.size();i++){
-				wordpat = wordpat + "<!" + wordclassList.get(i) + ">*";
-			}
-			if (wordpat.contains("*")){
-				wordpat = wordpat.substring(0, wordpat.lastIndexOf("*")) + "@1#编者=\"系统默认\"";
-				// 获取词模表的序列值
-				String wordpatid = "";
-				if (GetConfigValue.isOracle) {
-					wordpatid = ConstructSerialNum.GetOracleNextValNew("SEQ_WORDPATTERN_ID",bussinessFlag);
-				} else if (GetConfigValue.isMySQL) {
-					wordpatid = ConstructSerialNum.getSerialIDNew("wordpat", "wordpatid",bussinessFlag);
-				}
-				sql = "insert into wordpat(wordpatid,kbdataid,wordpat,city,wordpattype,autosendswitch,brand,edittime) values (?,?,?,?,?,?,?,sysdate)";
-				lstpara = new ArrayList<Object>();
-				lstpara.add(wordpatid);
-				lstpara.add(kbdataid);
-				lstpara.add(wordpat);
-				lstpara.add("全国");
-				lstpara.add(4);
-				lstpara.add(0);
-				lstpara.add(serviceType.split("->")[1] + "问题库");
-				// 将SQL语句放入集合中
-				lstSql.add(sql);
-				// 将对应的绑定参数集合放入集合中
-				lstLstpara.add(lstpara);
-			}
-		}
 		int count = -1;
 		count = Database.executeNonQueryTransaction(lstSql, lstLstpara);
 		System.out.println(count);
@@ -4295,7 +4215,7 @@ public class CommonLibQueryManageDAO {
 				.getBussinessFlag(user.getIndustryOrganizationApplication());
 		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID, QUERYTYPE, ISSTRICTEXCLUSION) values(?,?,?,?,?,1,?)";
 		String updateSql = " update querymanage set CITY=? , EDITTIME=sysdate where QUERY=? and KBDATAID=? and querytype=1";
-		Map<String, String> map = getCustomerQueryDic(normalQuery);
+		Map<String, String> map = getCustomerQueryDic(normalQuery,1);
 		Map<String, Map<String, String>> insertOrUpdateDic = getCustomerQueryInsertOrUpdateDic(
 				map, customerQuery, cityCode);
 		if (insertOrUpdateDic.size() > 0) {
@@ -4390,7 +4310,7 @@ public class CommonLibQueryManageDAO {
 		List<Object> lstpara = new ArrayList<Object>();
 		
 		String sql = " select * from (select t.*,rownum rn from ( "
-				+ " select * from (select s.service,s.brand,k.kbdataid,k.abstract,k.city abscity,k.responsetype,k.interacttype,k.topic, q.query,q.city ,q.id ,q.status ,q.result, q.istrain from (select * from service where serviceid=? ) s  "
+				+ " select * from (select s.service,s.brand,k.kbdataid,k.abstract,k.city abscity,k.responsetype,k.interacttype,k.topic, q.query,q.city ,q.id ,q.status ,q.result, q.istrain,q.isstrictexclusion from (select * from service where serviceid=? ) s  "
 				+ " inner join(select * from kbdata where  1>0  ";
 
 		lstpara.add(serviceid);
@@ -4502,6 +4422,488 @@ public class CommonLibQueryManageDAO {
 			count = Integer.valueOf(rs.getRows()[0].get("count").toString());
 		}
 		return count;
+	}
+
+	/**
+	 *@description 新增业务词词模
+	 *@param list
+	 *@param serviceType
+	 *@param userid
+	 *@return
+	 *@returnType int
+	 */
+	public static int insertWordpatByBusiness(List<List<String>> list, String serviceType,String userid,String wordpattype) {
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		String sql = "";
+		String bussinessFlag = CommonLibMetafieldmappingDAO
+				.getBussinessFlag(serviceType);
+		String brand = serviceType.split("->")[1];
+		for (int i = 0; i < list.size(); i++) {
+			List<String> tempList = list.get(i);
+			String wordpat = tempList.get(0);
+			String cityCode = tempList.get(1);
+			String query = tempList.get(2);
+			String kbdataid = tempList.get(3);
+			String queryid = tempList.get(4);
+			String wordpatid = "";
+			sql = "delete from wordpat where wordpat like ?  and wordpattype=? and kbdataid=? ";
+			// 定义绑定参数集合
+			lstpara = new ArrayList<Object>();
+			// 绑定词模like查询的参数
+			lstpara.add("%" + wordpat
+					+ "%");
+//			// 绑定问题类型参数,0代表普通词模
+//			lstpara.add("0");
+			// 绑定问题类型参数,5代表自学习词模
+			
+			if(wordpattype == null || "".equals(wordpattype)){
+				lstpara.add("5");
+			}else{
+				lstpara.add(wordpattype);
+			}
+			
+			
+			// 绑定摘要id参数
+			lstpara.add(kbdataid);
+//			// 绑定品牌城市
+//			lstpara.add(brand);
+			// 将删除词模的SQL语句放入SQL语句集合中
+			lstSql.add(sql);
+			// 将对应的参数集合放入集合中
+			lstLstpara.add(lstpara);
+			
+			//文件日志
+			GlobalValue.myLog.info(userid + "#" + sql + "#" + lstpara );
+
+			// 获取插入词模的序列
+			if (GetConfigValue.isOracle) {
+				// 获取词模表的序列值
+				wordpatid =  ConstructSerialNum
+						.GetOracleNextVal("SEQ_WORDPATTERN_ID")
+						+ "";
+				// 定义新增模板的SQL语句
+				sql = "insert into wordpat(wordpatid,wordpat,city,autosendswitch,wordpattype,kbdataid,brand,edittime,workerid) values(?,?,?,?,?,?,?,sysdate,?)";
+			} else if (GetConfigValue.isMySQL) {
+				// 获取词模表的序列值
+				wordpatid = ConstructSerialNum.getSerialID("wordpat",
+						"wordpatid")
+						+ "";
+				// 定义新增模板的SQL语句
+				sql = "insert into wordpat(wordpatid,wordpat,city,autosendswitch,wordpattype,kbdataid,brand,edittime,workerid) values(?,?,?,?,?,?,?,sysdate(),?)";
+			}
+			// 根据配置信息补充需插入主键ID
+			if (!"".equals(bussinessFlag)) {
+				wordpatid = wordpatid + "." + bussinessFlag;
+			}
+			// 定义绑定参数集合
+			lstpara = new ArrayList<Object>();
+			// 绑定词模id参数
+			lstpara.add(wordpatid);
+			// 绑定词模参数
+			lstpara.add(wordpat);
+			// 绑定城市名称参数
+			lstpara.add(cityCode);
+			// 绑定自动开关参数
+			lstpara.add("0");
+			
+//			// 绑定词模类型参数,0代表普通词模
+//			lstpara.add("0");
+			
+			// 绑定问题类型参数,5代表自学习词模
+			if(wordpattype == null || "".equals(wordpattype)){
+				lstpara.add("5");
+			}else{
+				lstpara.add(wordpattype);
+			}
+			
+			// 绑定摘要id参数
+			lstpara.add(kbdataid);
+			// 绑定品牌参数
+			lstpara.add(brand);
+			lstpara.add(userid);
+			// 将插入词模的SQL语句放入集合中
+			lstSql.add(sql);
+			// 将对应的绑定参数集合放入集合中
+			lstLstpara.add(lstpara);
+			
+			// 更新扩展问训练状态为'是'
+			lstSql.add("update querymanage set istrain='是' where id=? and istrain <> '是'");
+			lstLstpara.add(Arrays.asList(queryid));
+			
+			//文件日志
+			GlobalValue.myLog.info(userid + "#" + sql + "#" + lstpara );
+		}
+		return  Database.executeNonQueryTransaction(lstSql, lstLstpara);
+	}
+	/**插入词类词条
+	 * 
+	 * @param info
+	 * @return
+	 */
+	public static String getWordInsert(User user,
+			List<List<Object>> info) {
+		
+		String returnMsg = "导入成功！";
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		// 定义sql
+		String sql = "";
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		
+		// Map<wordclassid,词条>
+		Map<String, List<String>> map = new LinkedHashMap<String, List<String>>();
+		// Map<wordclass, wordclassid>
+		Map<String, String> nameToIdMap = new LinkedHashMap<String, String>();
+		// wordpat词条
+		List<String> wordclassList = new ArrayList<String>();
+		
+		//获得商家标识符
+		String serviceType = user.getIndustryOrganizationApplication();
+		String bussinessFlag = CommonLibMetafieldmappingDAO.getBussinessFlag(serviceType);
+		
+		// 获取配置表中的channel
+		Result rs = CommonLibMetafieldmappingDAO.getConfigValue("问题库系统默认摘要配置", serviceType);
+		List<String> configValueList = new ArrayList<String>();
+		if(rs!=null && rs.getRowCount() > 0){
+			for (int n = 0; n < rs.getRowCount(); n++) {
+				String value = rs.getRows()[n].get("name").toString();
+				configValueList.add(value);
+			}
+		}else{
+			returnMsg = "缺少默认摘要，请联系管理员！";
+			return returnMsg;
+		}
+		
+		int index = 0;
+		// 遍历每一行
+		for (List<Object> line : info){
+			index++;
+			// 词类
+			String wordclass = line.get(0) == null ? "" : line.get(0).toString().replace("近类", "").trim();
+			// 词条
+			String word = line.get(1) == null ? "" : line.get(1).toString().trim();
+			// 如果词类/词条为空，则略过这一行,词条长度大于4也略过这一行
+			if ("".equals(wordclass)){
+				returnMsg = returnMsg + "<br/>第" + index + "条数据同义词为空！";
+				continue;
+			}
+//			if (word.length() > 4){
+//				returnMsg = returnMsg + "<br/>第" + index + "条同义问字数过长";
+//				continue;
+//			}
+			// 词类未收集
+			if (!nameToIdMap.containsKey(wordclass + "近类")){
+				String checkWordclassSql = "select wordclassid from wordclass where container='基础' and wordclass = '" + wordclass + "近类" + "'";
+				Result checkWordclassResult = Database.executeQuery(checkWordclassSql);
+				// 库中存在该词类
+				if (checkWordclassResult != null && checkWordclassResult.getRowCount() > 0){
+					String wordclassid = checkWordclassResult.getRows()[0].get("wordclassid").toString();
+					String  checkWordSql = "select * from word where wordclassid='" + wordclassid + "'";
+					Result checkWordResult = Database.executeQuery(checkWordSql);
+					// 词类存在，则把所有库中词条放入map中
+					if (checkWordResult != null && checkWordResult.getRowCount() > 0){
+						List<String> wordList = new ArrayList<String>();
+						for (int i = 0;i < checkWordResult.getRowCount();i++){
+							wordList.add(checkWordResult.getRows()[i].get("word").toString());
+						}
+						// 同义词不在库中
+						if (!wordList.contains(wordclass)){
+							sql = "";
+							lstpara = new ArrayList<Object>();
+							
+							// 获取词条表的序列值
+							String wordid = "";
+							if (GetConfigValue.isOracle) {
+								wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+							} else if (GetConfigValue.isMySQL) {
+								wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+							}
+							sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+							// 绑定id参数
+							lstpara.add(wordid);
+							// 绑定词类id参数
+							lstpara.add(wordclassid);
+							// 绑定词类名称
+							lstpara.add(wordclass);
+							// 绑定类型参数
+							lstpara.add("标准名称");
+							// 将SQL语句放入集合中
+							lstSql.add(sql);
+							// 将对应的绑定参数集合放入集合中
+							lstLstpara.add(lstpara);
+							
+							wordList.add(wordclass);
+						}
+						// 词条不在库中
+						if (!"".equals(word) && !wordList.contains(word)){
+							sql = "";
+							lstpara = new ArrayList<Object>();
+							
+							// 获取词条表的序列值
+							String wordid = "";
+							if (GetConfigValue.isOracle) {
+								wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+							} else if (GetConfigValue.isMySQL) {
+								wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+							}
+							sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+							// 绑定id参数
+							lstpara.add(wordid);
+							// 绑定词类id参数
+							lstpara.add(wordclassid);
+							// 绑定词类名称
+							lstpara.add(word);
+							// 绑定类型参数
+							lstpara.add("标准名称");
+							// 将SQL语句放入集合中
+							lstSql.add(sql);
+							// 将对应的绑定参数集合放入集合中
+							lstLstpara.add(lstpara);
+							
+							wordList.add(word);
+						}
+						nameToIdMap.put(wordclass + "近类", wordclassid);
+						map.put(wordclassid, wordList);
+					}
+				} else {// 库中不存在该词类，则新建词类
+					
+					String wordclassid = "";
+					if (GetConfigValue.isOracle) {
+						wordclassid = ConstructSerialNum.GetOracleNextValNew("seq_wordclass_id",bussinessFlag);
+					} else if (GetConfigValue.isMySQL) {
+						wordclassid = ConstructSerialNum.getSerialIDNew("wordclass","wordclassid",bussinessFlag);
+					}
+					// 插入词类的SQL语句
+					sql = "insert into wordclass(wordclassid,wordclass,container) values(?,?,?)";
+					// 定义绑定参数集合
+					lstpara = new ArrayList<Object>();
+					// 绑定id参数
+					lstpara.add(wordclassid);
+					// 绑定词类参数
+					lstpara.add(wordclass + "近类");
+					// 绑定类型参数
+					lstpara.add("基础");
+					// 将SQL语句放入集合中
+					lstSql.add(sql);
+					// 将对应的绑定参数集合放入集合中
+					lstLstpara.add(lstpara);
+					
+					wordclassList.add(wordclass + "近类");
+					
+					// 新建词类完成后添加对应的词条
+					// 获取词条表的序列值
+					String wordid = "";
+					
+					if (GetConfigValue.isOracle) {
+						wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+					} else if (GetConfigValue.isMySQL) {
+						wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+					}
+					sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+					// 定义绑定参数集合
+					lstpara = new ArrayList<Object>();
+					// 绑定id参数
+					lstpara.add(wordid);
+					// 绑定词类id参数
+					lstpara.add(wordclassid);
+					// 绑定词类名称
+					lstpara.add(wordclass);
+					// 绑定类型参数
+					lstpara.add("标准名称");
+					// 将SQL语句放入集合中
+					lstSql.add(sql);
+					// 将对应的绑定参数集合放入集合中
+					lstLstpara.add(lstpara);
+					
+					List<String> wordList = new ArrayList<String>();
+					wordList.add(wordclass);
+					
+					if (!"".equals(word)){
+						if (GetConfigValue.isOracle) {
+							wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+						} else if (GetConfigValue.isMySQL) {
+							wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+						}
+						sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+						// 定义绑定参数集合
+						lstpara = new ArrayList<Object>();
+						// 绑定id参数
+						lstpara.add(wordid);
+						// 绑定词类id参数
+						lstpara.add(wordclassid);
+						// 绑定词类名称
+						lstpara.add(word);
+						// 绑定类型参数
+						lstpara.add("标准名称");
+						// 将SQL语句放入集合中
+						lstSql.add(sql);
+						// 将对应的绑定参数集合放入集合中
+						lstLstpara.add(lstpara);
+
+						wordList.add(word);
+					}
+					
+					
+					nameToIdMap.put(wordclass + "近类", wordclassid);
+					map.put(wordclassid, wordList);
+				}
+			}else {// 该词类已收集
+				String wordclassid = nameToIdMap.get(wordclass + "近类");
+				List<String> wordList = new ArrayList<String>();
+				wordList = map.get(wordclassid);
+				
+				// 同义词不在库中
+				if (!wordList.contains(wordclass)){
+					sql = "";
+					lstpara = new ArrayList<Object>();
+					
+					// 获取词条表的序列值
+					String wordid = "";
+					if (GetConfigValue.isOracle) {
+						wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+					} else if (GetConfigValue.isMySQL) {
+						wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+					}
+					sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+					// 绑定id参数
+					lstpara.add(wordid);
+					// 绑定词类id参数
+					lstpara.add(wordclassid);
+					// 绑定词类名称
+					lstpara.add(wordclass);
+					// 绑定类型参数
+					lstpara.add("标准名称");
+					// 将SQL语句放入集合中
+					lstSql.add(sql);
+					// 将对应的绑定参数集合放入集合中
+					lstLstpara.add(lstpara);
+					
+					wordList.add(wordclass);
+				}
+				
+				// 词条未收集
+				if(!wordList.contains(word)){
+					sql = "";
+					lstpara = new ArrayList<Object>();
+					
+					// 获取词条表的序列值
+					String wordid = "";
+					if (GetConfigValue.isOracle) {
+						wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+					} else if (GetConfigValue.isMySQL) {
+						wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+					}
+					sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+					// 绑定id参数
+					lstpara.add(wordid);
+					// 绑定词类id参数
+					lstpara.add(wordclassid);
+					// 绑定词类名称
+					lstpara.add(word);
+					// 绑定类型参数
+					lstpara.add("标准名称");
+					// 将SQL语句放入集合中
+					lstSql.add(sql);
+					// 将对应的绑定参数集合放入集合中
+					lstLstpara.add(lstpara);
+					
+					wordList.add(word);
+					map.put(wordclassid, wordList);
+				}
+			}
+		}
+		
+		// 插入词模
+		if (wordclassList.size() > 0){
+			// 获取kbdataid
+			String kbdataid = "";
+			String kbdata = configValueList.get(0);
+			sql = "select kbdataid from kbdata where abstract=?";
+			Result kbdataRs = Database.executeQuery(sql, kbdata);
+			if (kbdataRs != null && kbdataRs.getRowCount() >0){
+				kbdataid = kbdataRs.getRows()[0].get("kbdataid").toString();
+			}else{
+				returnMsg = "缺少默认摘要，请联系管理员！";
+				return returnMsg;
+			}
+			
+			int num = wordclassList.size()/5;
+			String wordpat = "";
+			for (int i = 0;i < (num-1);i++){
+				wordpat = "";
+				wordpat = "<!" + wordclassList.get(i*5) + ">*"
+						+ "<!" + wordclassList.get(i*5+1) + ">*"
+						+ "<!" + wordclassList.get(i*5+2) + ">*"
+						+ "<!" + wordclassList.get(i*5+3) + ">*"
+						+ "<!" + wordclassList.get(i*5+4) + ">"
+						+ "@1#编者=\"系统默认\"";
+				// 获取词模表的序列值
+				String wordpatid = "";
+				if (GetConfigValue.isOracle) {
+					wordpatid = ConstructSerialNum.GetOracleNextValNew("SEQ_WORDPATTERN_ID",bussinessFlag);
+				} else if (GetConfigValue.isMySQL) {
+					wordpatid = ConstructSerialNum.getSerialIDNew("wordpat", "wordpatid",bussinessFlag);
+				}
+				sql = "insert into wordpat(wordpatid,kbdataid,wordpat,city,wordpattype,autosendswitch,brand,edittime) values (?,?,?,?,?,?,?,sysdate)";
+				lstpara = new ArrayList<Object>();
+				lstpara.add(wordpatid);
+				lstpara.add(kbdataid);
+				lstpara.add(wordpat);
+				lstpara.add("全国");
+				lstpara.add(4);
+				lstpara.add(0);
+				lstpara.add(serviceType.split("->")[1] + "问题库");
+				// 将SQL语句放入集合中
+				lstSql.add(sql);
+				// 将对应的绑定参数集合放入集合中
+				lstLstpara.add(lstpara);
+			}
+			wordpat = "";
+			// 添加剩下的词类
+			for (int i = (num-1)*5 < 0 ? 0 : (num-1)*5;i < wordclassList.size();i++){
+				wordpat = wordpat + "<!" + wordclassList.get(i) + ">*";
+			}
+			if (wordpat.contains("*")){
+				wordpat = wordpat.substring(0, wordpat.lastIndexOf("*")) + "@1#编者=\"系统默认\"";
+				// 获取词模表的序列值
+				String wordpatid = "";
+				if (GetConfigValue.isOracle) {
+					wordpatid = ConstructSerialNum.GetOracleNextValNew("SEQ_WORDPATTERN_ID",bussinessFlag);
+				} else if (GetConfigValue.isMySQL) {
+					wordpatid = ConstructSerialNum.getSerialIDNew("wordpat", "wordpatid",bussinessFlag);
+				}
+				sql = "insert into wordpat(wordpatid,kbdataid,wordpat,city,wordpattype,autosendswitch,brand,edittime) values (?,?,?,?,?,?,?,sysdate)";
+				lstpara = new ArrayList<Object>();
+				lstpara.add(wordpatid);
+				lstpara.add(kbdataid);
+				lstpara.add(wordpat);
+				lstpara.add("全国");
+				lstpara.add(4);
+				lstpara.add(0);
+				lstpara.add(serviceType.split("->")[1] + "问题库");
+				// 将SQL语句放入集合中
+				lstSql.add(sql);
+				// 将对应的绑定参数集合放入集合中
+				lstLstpara.add(lstpara);
+			}
+		}
+		int count = -1;
+		count = Database.executeNonQueryTransaction(lstSql, lstLstpara);
+		System.out.println(count);
+		if (count == 0){
+			return returnMsg + "！";
+		}else if (count == -1){
+			return "导入失败";
+		}
+		return returnMsg;
 	}
 
 }

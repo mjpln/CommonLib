@@ -2176,7 +2176,7 @@ public class CommonLibQueryManageDAO {
 	 *@returnType Result 
 	 */
 	public static Result getQuery(String serviceid,int querytype){
-		String sql = "select k.kbdataid, k.abstract,k.city abscity,q.id,q.query,q.city from (select * from service where serviceid ="+serviceid+" ) s inner join  kbdata k on s.serviceid = k.serviceid left join querymanage q  on k.kbdataid=q.kbdataid and q.querytype="+querytype;
+		String sql = "select k.kbdataid, k.abstract,k.city abscity,q.id,q.query,q.city,q.isstrictexclusion  from (select * from service where serviceid ="+serviceid+" ) s inner join  kbdata k on s.serviceid = k.serviceid left join querymanage q  on k.kbdataid=q.kbdataid and q.querytype="+querytype;
 	    
 		//文件日志
 		GlobalValue.myLog.info( sql );

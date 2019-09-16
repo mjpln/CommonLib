@@ -2031,6 +2031,99 @@ public class CommonLibWordDAO {
 		return rs;
     }
 	
+    /**
+     * 获取词条信息
+     * 
+     * @param wordclassid
+     * @param word
+     * @return
+     */
+	public static Result getWordInfo(String wordclassid, String word) {
+		String sql = "select * from word where wordclassid = ? and word = ?";
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		lstpara.add(wordclassid);
+		lstpara.add(word);
+		// 执行SQL语句，获取相应的数据源
+		Result rs = Database.executeQuery(sql, lstpara.toArray());
+		//文件日志
+		GlobalValue.myLog.info( sql + "#" + lstpara );
+		return rs;
+	}
 	
+	/**
+	 * 判断别名是否重复
+	 * 
+	 * @param name别名
+	 * @param wordclassid参数词类名称id
+	 * @return boolean
+	 */
+	public static boolean existOtherWord(String name, String wordid) {
+		// 定义查询属性名称是否重复的SQL语句
+		String sql = "select * from word where word=? and stdwordid=?";
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		// 绑定属性名称参数
+		lstpara.add(name);
+		// 绑定属性名称id参数
+		lstpara.add(wordid);
+		// 执行SQL语句，获取相应的数据源
+		Result rs = Database.executeQuery(sql, lstpara.toArray());
+		
+		//文件日志
+		GlobalValue.myLog.info( sql + "#" + lstpara );
+		
+		// 判断数据源不为null且含有数据
+		if (rs != null && rs.getRowCount() > 0) {
+			return true;
+		}
+		return false;
+	}
 	
+	/**
+	 * 新增别名
+	 * 
+	 * @param name别名
+	 * @param wordclassid词类名称id
+	 * @param wordclass词类名称
+	 * @return int
+	 */
+	public static int insertOtherWord(String name, String wordid, String wordclassid, User user) {
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		// 定义新增词条的SQL语句
+		String sql = "insert into word (wordid,wordclassid,word, type, stdwordid) values(?,?,?,?,?)";
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		// 获取词条表的序列值，并绑定参数
+		String word_sid = "";
+		String serviceType = user.getIndustryOrganizationApplication();
+		String bussinessFlag = CommonLibMetafieldmappingDAO.getBussinessFlag(serviceType);
+		if (GetConfigValue.isOracle) {
+			word_sid =  (ConstructSerialNum.GetOracleNextValNew("seq_word_id", bussinessFlag));
+		} else if (GetConfigValue.isMySQL) {
+			word_sid = ConstructSerialNum.getSerialIDNew("word", "wordid", bussinessFlag);
+		}
+		lstpara.add(word_sid);
+		// 绑定词类id参数
+		lstpara.add(wordclassid);
+		// 绑定词条参数
+		lstpara.add(name);
+		// 绑定词条类型参数
+		lstpara.add("标准名称");
+		// 绑定词条ID参数
+		lstpara.add(wordid);
+		// 将SQL语句放入集合中
+		lstSql.add(sql);
+		// 将对应的绑定参数集合放入集合中
+		lstLstpara.add(lstpara);
+		
+		//文件日志
+		GlobalValue.myLog.info(sql + "#" + lstpara );
+		
+		int c = Database.executeNonQueryTransaction(lstSql, lstLstpara);
+		return c;
+	}
 }

@@ -2112,7 +2112,7 @@ public class CommonLibWordDAO {
 		// 绑定词条参数
 		lstpara.add(name);
 		// 绑定词条类型参数
-		lstpara.add("标准名称");
+		lstpara.add("其他别名");
 		// 绑定词条ID参数
 		lstpara.add(wordid);
 		// 将SQL语句放入集合中

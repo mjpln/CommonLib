@@ -87,11 +87,12 @@ public class CommonLibNewWordInfoDAO {
 	 * @return
 	 */
 	public static Result selectNewWordInfo(String serviceType, String isserviceword) {
-		String sql = "select businessid,newword,wordclassid,wordpatid,isserviceword from newwordinfo where businessid = '"+serviceType+"'";
+		String sql = "select n.businessid,n.newword,n.wordclassid,n.wordpatid,n.isserviceword from newwordinfo n where n.businessid = '"+serviceType+"'";
 		if(StringUtils.isNotBlank(isserviceword)){
-			sql += " and isserviceword="+isserviceword;
+			sql += " and n.isserviceword="+isserviceword;
 		}
-		sql += " order by time desc";
+		sql += "and  exists(select w.wordclassid from wordclass w where w.wordclassid =n.wordclassid)";
+		sql += " order by n.time desc";
 
 		return Database.executeQuery(sql);
 

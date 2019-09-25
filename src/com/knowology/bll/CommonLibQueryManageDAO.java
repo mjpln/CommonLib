@@ -1,12 +1,8 @@
 package com.knowology.bll;
 
-import java.io.File;
-import java.sql.SQLException;
-import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -19,11 +15,8 @@ import java.util.regex.Pattern;
 
 import javax.servlet.jsp.jstl.sql.Result;
 
-import org.apache.commons.collections.CollectionUtils;
-import org.apache.commons.lang.ArrayUtils;
 import org.apache.commons.lang.StringUtils;
 
-import com.alibaba.fastjson.JSONObject;
 import com.knowology.GlobalValue;
 import com.knowology.Bean.ImportNormalqueryBean;
 import com.knowology.Bean.User;
@@ -1480,9 +1473,14 @@ public class CommonLibQueryManageDAO {
 			sql = "delete from wordpat where wordpat like ?  and wordpattype=? and kbdataid=? ";
 			// 定义绑定参数集合
 			lstpara = new ArrayList<Object>();
-			// 绑定词模like查询的参数
+			// 绑定词模like查询的参数，为了增加精准词模,改为直接由词模进行判断
+			if(wordpat.indexOf("@1#") == -1){
 			lstpara.add("%@2#编者=\"问题库\"&来源=\"" + query.replace("&", "\\and")
-					+ "\"%");
+					+ "\"%");		
+			} else{
+				lstpara.add("%@1#编者=\"问题库\"&来源=\"" + query.replace("&", "\\and")
+				+ "\"%");		
+			}
 //			// 绑定问题类型参数,0代表普通词模
 //			lstpara.add("0");
 			// 绑定问题类型参数,5代表自学习词模
@@ -3212,7 +3210,7 @@ public class CommonLibQueryManageDAO {
 	 * @param info
 	 * @return
 	 */
-	public static String insertWordClassAndItem(User user,
+	public static int insertWordClassAndItem(User user,
 			List<List<Object>> info) {
 		
 		String returnMsg = "新增成功！";
@@ -3470,13 +3468,17 @@ public class CommonLibQueryManageDAO {
 		
 		int count = -1;
 		count = Database.executeNonQueryTransaction(lstSql, lstLstpara);
-		System.out.println(count);
 		if (count == 0){
-			return returnMsg + "！";
-		}else if (count == -1){
-			return "导入失败";
-		}
-		return returnMsg;
+			returnMsg =   returnMsg+"！";
+	   }
+		System.out.println(returnMsg);
+		
+//		if (count == 0){
+//			return returnMsg + "！";
+//		}else if (count == -1){
+//			return "导入失败";
+//		}
+		return count;
 	}
 
 	

@@ -177,7 +177,13 @@ public class CommonLibQueryManageDAO {
 		if(StringUtils.isEmpty(parentId)){
 			parentId = "0";
 		}
-		if(StringUtils.isEmpty(brand)){
+		if(GetConfigValue.isToMysql) {
+		     if (StringUtils.isEmpty(brand))
+		          sql = sql + parentId + "') connect by nocycle prior serviceid = parentid ";
+		     else {
+		          sql = sql + parentId + "' and brand='" + brand + "') connect by nocycle prior serviceid = parentid";
+		     }
+		}else if(StringUtils.isEmpty(brand)){
 			sql+=parentId+"') connect by nocycle prior serviceid = parentid and level <= 3";
 		}else{
 			sql+=parentId+"' and brand='"+brand+"') connect by nocycle prior serviceid = parentid and level <= 3";
@@ -1473,14 +1479,13 @@ public class CommonLibQueryManageDAO {
 			sql = "delete from wordpat where wordpat like ?  and wordpattype=? and kbdataid=? ";
 			// 定义绑定参数集合
 			lstpara = new ArrayList<Object>();
-			// 绑定词模like查询的参数，为了增加精准词模,改为直接由词模进行判断
-			if(wordpat.indexOf("@1#") == -1){
-			lstpara.add("%@2#编者=\"问题库\"&来源=\"" + query.replace("&", "\\and")
-					+ "\"%");		
-			} else{
-				lstpara.add("%@1#编者=\"问题库\"&来源=\"" + query.replace("&", "\\and")
-				+ "\"%");		
+			// 绑定词模like查询的参数，为了增加精准词模,改为动态获取词模后的字符串
+			String split = "@2#";
+			if(wordpat.contains("@1#")){
+				split = "@1#";
 			}
+			String wordpatcon = wordpat.split(split)[1];
+			lstpara.add("%"+split + wordpatcon+ "%");	
 //			// 绑定问题类型参数,0代表普通词模
 //			lstpara.add("0");
 			// 绑定问题类型参数,5代表自学习词模

@@ -960,7 +960,7 @@ public class CommonLibInteractiveSceneDAO {
 		return rs;
 	}
 
-	/**
+	 /**
 	 * 查询满足条件的问题要素信息记录数
 	 * 
 	 * @param kbdataid参数摘要id

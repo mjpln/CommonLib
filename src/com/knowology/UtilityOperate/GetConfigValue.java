@@ -1,12 +1,13 @@
 package com.knowology.UtilityOperate;
 
-import java.io.FileInputStream;
-import java.io.FileNotFoundException;
-import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
+import java.util.Objects;
 import java.util.ResourceBundle;
+
+import javax.servlet.jsp.jstl.sql.Result;
+
+import com.knowology.bll.CommonLibMetafieldmappingDAO;
 
 public class GetConfigValue {
 
@@ -21,6 +22,13 @@ public class GetConfigValue {
 			.equalsIgnoreCase(getDatabase("isToMysql")) ? true : false);
 
 	public final static int NUMBER_OF_MAX_SCENE = 20;
+	
+	//是否启用存储过程
+	public static boolean enableDBFun = false;
+	
+	static {
+		init();
+	}
 
 	/**
 	 * 读取全局配置文件信息
@@ -100,4 +108,13 @@ public class GetConfigValue {
 		return lstpara;
 	}
 
+	public static void init(){
+		Result result = CommonLibMetafieldmappingDAO.getConfigValue("语义存储过程启用配置", "默认");
+		if(result != null && result.getRowCount() > 0){
+			String s = Objects.toString(result.getRows()[0].get("name"),"关闭");
+			if("开启".equals(s)){
+				enableDBFun = true;
+			}
+		}
+	}
 }

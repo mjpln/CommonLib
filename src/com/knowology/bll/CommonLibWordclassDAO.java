@@ -6,7 +6,6 @@ import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.ResourceBundle;
 
 import javax.servlet.jsp.jstl.sql.Result;
 
@@ -1702,4 +1701,122 @@ public class CommonLibWordclassDAO {
 		return rs;
 	}
 	
+	/**
+	 * 
+	 * @param user
+	 * @param wordclass
+	 * @param wordList
+	 * @param container
+	 * @param serviceType
+	 * @return
+	 */
+	public static int insertClassAndWord(User user, List<String> wordclassList,
+			String container, String serviceType) {
+		// 定义多条SQL语句集合
+		List<String> lstsql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstlstpara = new ArrayList<List<?>>();
+		// 定义SQL语句
+		String sql = "";
+		String wordcalssid = "";
+
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		// 获得商家标识符
+		String bussinessFlag = CommonLibMetafieldmappingDAO
+				.getBussinessFlag(serviceType);
+
+		for (int i = 0; i < wordclassList.size(); i++) {
+			String wordclass = wordclassList.get(i);
+			if (GetConfigValue.isOracle) {
+				wordcalssid = ConstructSerialNum.GetOracleNextValNew(
+						"seq_wordclass_id", bussinessFlag);
+			} else if (GetConfigValue.isMySQL) {
+				wordcalssid = ConstructSerialNum.getSerialIDNew("wordclass",
+						"wordclassid", bussinessFlag);
+			}
+			// 插入词类的SQL语句
+			sql = "insert into wordclass(wordclassid,wordclass,container) values(?,?,?)";
+			// 定义绑定参数集合
+			lstpara = new ArrayList<Object>();
+			// 绑定id参数
+			lstpara.add(wordcalssid);
+			// 绑定词类参数
+			lstpara.add(wordclass);
+			// 绑定类型参数
+			lstpara.add(container);
+			// 将SQL语句放入集合中
+			lstsql.add(sql);
+			// 将对应的绑定参数集合放入集合中
+			lstlstpara.add(lstpara);
+
+//			// 存储过程
+//			lstsql.add("call P_WORDCLASSADD(?)");
+//			// 定义绑定参数集合
+//			lstpara = new ArrayList<Object>();
+//			lstpara.add(wordcalssid);
+//			lstlstpara.add(lstpara);
+
+			// 生成操作日志记录
+			// 将SQL语句放入集合中
+			lstsql.add(GetConfigValue.LogSql());
+			// 将定义的绑定参数集合放入集合中
+			lstlstpara.add(GetConfigValue.LogParam(user.getUserIP(), user
+					.getUserID(), user.getUserName(), " ", " ", "增加词类",
+					wordclass, "WORDCLASS"));
+
+			// 获取词条表的序列值
+			String wordid = "";
+			if (GetConfigValue.isOracle) {
+				wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",
+						bussinessFlag);
+			} else if (GetConfigValue.isMySQL) {
+				wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",
+						bussinessFlag);
+			}
+
+			String worditem = wordclass.replace("近类", "");
+			// 定义保存词条的SQL语句
+			sql = "insert into word(wordid,wordclassid,word,type) values(?,?,?,?) ";
+			// 定义绑定参数集合
+			lstpara = new ArrayList<Object>();
+			// 绑定id参数
+			lstpara.add(wordid);
+			// 绑定词类id参数
+			lstpara.add(wordcalssid);
+			// 绑定词类名称
+			lstpara.add(worditem);
+			// 绑定类型参数
+			lstpara.add("标准名称");
+			// 将SQL语句放入集合中
+			lstsql.add(sql);
+			// 将对应的绑定参数集合放入集合中
+			lstlstpara.add(lstpara);
+
+			// 文件日志
+			GlobalValue.myLog
+					.info(user.getUserID() + "#" + sql + "#" + lstpara);
+
+			if (GetConfigValue.enableDBFun) {
+				// 存储过程
+				lstsql.add("call P_WORDADD(?)");
+				// 定义绑定参数集合
+				lstpara = new ArrayList<Object>();
+				lstpara.add(wordid);
+				lstlstpara.add(lstpara);
+			}
+			
+			if (user != null) {
+				// 生成操作日志记录
+				// 将SQL语句放入集合中
+				lstsql.add(GetConfigValue.LogSql());
+				// 将定义的绑定参数集合放入集合中
+				lstlstpara.add(GetConfigValue.LogParam(user.getUserIP(), user
+						.getUserID(), user.getUserName(), " ", " ", "增加词条",
+						worditem, "WORD"));
+			}
+
+		}
+		return Database.executeNonQueryTransaction(lstsql, lstlstpara);
+	}
 }

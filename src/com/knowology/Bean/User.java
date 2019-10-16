@@ -107,7 +107,8 @@ public class User {
 			String industryOrganizationApplication) {
 		this.industryOrganizationApplication = industryOrganizationApplication;
 		if(industryOrganizationApplication != null && !industryOrganizationApplication.equals(""))
-		this.brand = industryOrganizationApplication.split("->")[1] + "问题库";
+			this.brand = industryOrganizationApplication.split("->")[1] + "问题库";
+		
 	}
 	public String getBrand() {
 		return brand;

@@ -202,3 +202,4 @@ target
 
 # Java class files
 *.class
+/bin/

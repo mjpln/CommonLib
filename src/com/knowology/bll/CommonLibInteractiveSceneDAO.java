@@ -19,6 +19,7 @@ import org.apache.log4j.Logger;
 import com.alibaba.fastjson.JSONArray;
 import com.alibaba.fastjson.JSONObject;
 import com.knowology.GlobalValue;
+import com.knowology.ToolMethods;
 import com.knowology.Bean.User;
 import com.knowology.UtilityOperate.GetConfigValue;
 import com.knowology.dal.Database;
@@ -30,6 +31,8 @@ import com.knowology.dal.MysqlTransfer;
  */
 public class CommonLibInteractiveSceneDAO {
 	public static Logger logger = Logger.getLogger("sqllog");
+	
+	public static int sceneConditionCount = Integer.parseInt(ToolMethods.getConfigValues("SceneConditionCount"));
 
 	/**
 	 * 构造场景树
@@ -428,7 +431,7 @@ public class CommonLibInteractiveSceneDAO {
 		if (configRs != null && configRs.getRowCount() > 0){
 			for (int i = 0 ; i < configRs.getRowCount() ; i++){
 				// 最多十个配置
-				if (i >= 20){
+				if (i >= sceneConditionCount){
 					break;
 				}
 				if (GetConfigValue.isOracle) {
@@ -1561,11 +1564,11 @@ public class CommonLibInteractiveSceneDAO {
 			String kbcontentid, String conditions, String returntxttype,
 			String status, int page, int rows) {
 		// 定义问题要素数组，并设定长度为10
-		String[] conditionArr = new String[20];
+		String[] conditionArr = new String[sceneConditionCount];
 		// 判断conditions不为null且不为空
 		if (conditions != null && !"".equals(conditions)) {
 			// 将conditions按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 定义绑定参数集合
 		List<Object> lstpara = new ArrayList<Object>();
@@ -1641,11 +1644,11 @@ public class CommonLibInteractiveSceneDAO {
 			String status) {
 		int count = 0;
 		// 定义问题要素数组，并设定长度为10
-		String[] conditionArr = new String[20];
+		String[] conditionArr = new String[sceneConditionCount];
 		// 判断conditions不为null且不为空
 		if (conditions != null && !"".equals(conditions)) {
 			// 将conditions按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 查询满足条件的数量的SQL语句
 		String sql = "select * from conditioncombtoreturntxt where kbdataid=? and kbcontentid=? ";
@@ -1900,7 +1903,7 @@ public class CommonLibInteractiveSceneDAO {
 		// 判断问题要素组合不为null且不为空
 		if (conditions != null && !"".equals(conditions)) {
 			// 将问题元素中按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 定义SQL语句
 		StringBuilder sql = new StringBuilder();
@@ -1967,7 +1970,7 @@ public class CommonLibInteractiveSceneDAO {
 		// 判断问题要素组合不为null且不为空
 		if (conditions != null && !"".equals(conditions)) {
 			// 将问题元素中按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 定义SQL语句
 		StringBuilder sql = new StringBuilder();
@@ -2066,7 +2069,7 @@ public class CommonLibInteractiveSceneDAO {
 		// 判断问题要素组合不为null且不为空
 		if (conditions != null || !"".equals(conditions)) {
 			// 将问题要素组合按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 定义SQL语句
 		StringBuilder sql = new StringBuilder();
@@ -2131,7 +2134,7 @@ public class CommonLibInteractiveSceneDAO {
 		// 判断问题要素组合不为null且不为空
 		if (conditions != null && !"".equals(conditions)) {
 			// 将问题元素中按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 定义SQL语句
 		StringBuilder sql = new StringBuilder();
@@ -2395,7 +2398,7 @@ public class CommonLibInteractiveSceneDAO {
 		// 判断问题要素组合不为null且不为空
 		if (conditions != null && !"".equals(conditions)) {
 			// 将问题元素中按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 定义SQL语句
 		StringBuilder sql = new StringBuilder();
@@ -2620,7 +2623,7 @@ public class CommonLibInteractiveSceneDAO {
 		// 判断问题要素组合不为null且不为空
 		if (conditions != null && !"".equals(conditions)) {
 			// 将问题元素中按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 定义SQL语句
 		StringBuilder sql = new StringBuilder();
@@ -2783,11 +2786,11 @@ public class CommonLibInteractiveSceneDAO {
 		// 定义返回的count
 		int count = 0;
 		// 定义问题要素数组，并设定长度为10
-		String[] conditionArr = new String[20];
+		String[] conditionArr = new String[sceneConditionCount];
 		// 判断conditions不为null且不为空
 		if (conditions != null && !"".equals(conditions)) {
 			// 将conditions按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 查询规则的SQL语句
 		String sql = "select count(*) count from SCENARIOSRULES where relationserviceid=?  ";
@@ -3004,11 +3007,11 @@ public class CommonLibInteractiveSceneDAO {
 		JSONObject jsonObj = new JSONObject();
 		JSONArray jsonArr = new JSONArray();
 		// 定义问题要素数组，并设定长度为20
-		String[] conditionArr = new String[20];
+		String[] conditionArr = new String[sceneConditionCount];
 		// 判断conditions不为null且不为空
 		if (conditions != null && !"".equals(conditions)) {
 			// 将conditions按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		String sql = "";
 		if (GetConfigValue.isOracle) {
@@ -3228,7 +3231,7 @@ public class CommonLibInteractiveSceneDAO {
 				// 生成id对象
 				obj.put("id", rsSet.getObject("ruleid"));
 				// 循环遍历condition1-10，并生成相应的对象
-				for (int j = 1; j < 21; j++) {
+				for (int j = 1; j < sceneConditionCount; j++) {
 					obj.put("condition" + j,
 							rsSet.getObject("condition" + j) != null ? rsSet
 									.getString("condition" + j) : "");
@@ -3810,7 +3813,7 @@ public class CommonLibInteractiveSceneDAO {
 		// 判断问题要素组合不为null且不为空
 		if (conditions != null || !"".equals(conditions)) {
 			// 将问题要素组合按照@拆分
-			conditionArr = conditions.split("@", 20);
+			conditionArr = conditions.split("@", sceneConditionCount);
 		}
 		// 绑定规则类型参数
 		lstpara.add(ruletype);
@@ -4914,18 +4917,22 @@ public class CommonLibInteractiveSceneDAO {
 		
 		String sql = "";
 		int c = -1;
-		sql = "insert into scenariosrules (ruleid,relationserviceid,"
-//				 sql = "insert into scenariosrules (ruleid,scenariosid,"
-				+ "condition1,condition2,condition3,condition4,condition5,condition6,condition7,condition8,condition9,condition10,condition11,condition12,condition13,condition14,condition15,condition16,condition17,condition18,condition19,condition20,"
-				+ "ruletype,weight,city,cityname,abovequestionobject,abovestandardquestion,responsetype,"
-				+ "questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate"
-				+ ") (select seq_scenariosrules_id.nextval";
+		sql = "insert into scenariosrules (ruleid,relationserviceid,";
+//		sql = "insert into scenariosrules (ruleid,scenariosid,"
+		for(int i=1; i<sceneConditionCount;i++) {
+			sql += "condition"+i+",";
+		}
+		sql +="ruletype,weight,city,cityname,abovequestionobject,abovestandardquestion,responsetype,"
+		+ "questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate"
+		+ ") (select seq_scenariosrules_id.nextval";
 		if (!"".equals(bussinessFlag)){
 			sql = sql + "+'." + bussinessFlag +"'";
 		}
-		sql = sql
-				+",relationserviceid,condition1,condition2,condition3,condition4,condition5,condition6,condition7,condition8,condition9,condition10,condition11,condition12,condition13,condition14,condition15,condition16,condition17,condition18,condition19,condition20,"
-				+ "ruletype,weight,'"
+		sql += ",relationserviceid,";
+		for(int i=1; i<sceneConditionCount;i++) {
+			sql += "condition"+i+",";
+		}
+		sql += "ruletype,weight,'"
 				+ cityCode
 				+ "','"
 				+ cityName
@@ -5062,7 +5069,15 @@ public class CommonLibInteractiveSceneDAO {
 		GlobalValue.myLog.info( sql + "#" + lstpara );
 		
 		// 将线下表的规则放入正式表
-		sql = "insert into scenariosrules_online(ruleid,relationserviceid,condition1,condition2,condition3,condition4,condition5,condition6,condition7,condition8,condition9,condition10,condition11,condition12,condition13,condition14,condition15,condition16,condition17,condition18,condition19,condition20,ruletype,weight,city,cityname,EXCLUDEDCITY,abovequestionobject,abovestandardquestion,responsetype,questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,isedit)  (select ruleid,relationserviceid,condition1,condition2,condition3,condition4,condition5,condition6,condition7,condition8,condition9,condition10,condition11,condition12,condition13,condition14,condition15,condition16,condition17,condition18,condition19,condition20,ruletype,weight,city,cityname,EXCLUDEDCITY,abovequestionobject,abovestandardquestion,responsetype,questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,'0' from scenariosrules where relationserviceid = ? and city like ? )";
+		sql = "insert into scenariosrules_online(ruleid,relationserviceid,";
+		for(int i=1; i<sceneConditionCount;i++) {
+			sql += "condition"+i+",";
+		}
+		sql += "ruletype,weight,city,cityname,EXCLUDEDCITY,abovequestionobject,abovestandardquestion,responsetype,questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,isedit)  (select ruleid,relationserviceid,";
+		for(int i=1; i<sceneConditionCount;i++) {
+			sql += "condition"+i+",";
+		}
+		sql += "ruletype,weight,city,cityname,EXCLUDEDCITY,abovequestionobject,abovestandardquestion,responsetype,questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,'0' from scenariosrules where relationserviceid = ? and city like ? )";
 		lstpara = new ArrayList<Object>();
 		// 添加场景id参数
 		lstpara.add(scenariosid);
@@ -5215,7 +5230,15 @@ public class CommonLibInteractiveSceneDAO {
 		GlobalValue.myLog.info( sql + "#" + lstpara );
 		
 		// 将线下表的规则放入正式表
-		sql = "insert into scenariosrules_online(ruleid,relationserviceid,condition1,condition2,condition3,condition4,condition5,condition6,condition7,condition8,condition9,condition10,condition11,condition12,condition13,condition14,condition15,condition16,condition17,condition18,condition19,condition20,ruletype,weight,city,cityname,abovequestionobject,abovestandardquestion,responsetype,questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,isedit)  (select ruleid,relationserviceid,condition1,condition2,condition3,condition4,condition5,condition6,condition7,condition8,condition9,condition10,condition11,condition12,condition13,condition14,condition15,condition16,condition17,condition18,condition19,condition20,ruletype,weight,city,cityname,abovequestionobject,abovestandardquestion,responsetype,questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,'0' from scenariosrules where relationserviceid = ? and (city is null or city = '全国'))";
+		sql = "insert into scenariosrules_online(ruleid,relationserviceid,";
+		for(int i=1; i<sceneConditionCount;i++) {
+			sql += "condition"+i+",";
+		}
+		sql +=	"ruletype,weight,city,cityname,abovequestionobject,abovestandardquestion,responsetype,questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,isedit)  (select ruleid,relationserviceid,";
+		for(int i=1; i<sceneConditionCount;i++) {
+			sql += "condition"+i+",";
+		}
+		sql += "ruletype,weight,city,cityname,abovequestionobject,abovestandardquestion,responsetype,questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,'0' from scenariosrules where relationserviceid = ? and (city is null or city = '全国'))";
 		lstpara = new ArrayList<Object>();
 		// 添加场景id参数
 		lstpara.add(scenariosid);
@@ -5665,7 +5688,7 @@ public class CommonLibInteractiveSceneDAO {
 			
 			//3.添加默认规则
 			String conditions = "";
-			for (int i = 1 ; i <= 20 ; i++){
+			for (int i = 1 ; i < sceneConditionCount ; i++){
 				if(Integer.valueOf(weight)==i){
 					conditions = conditions + "已选" + "@";
 				}else {
@@ -5732,12 +5755,17 @@ public class CommonLibInteractiveSceneDAO {
 		// 定义多条SQL语句对应的绑定参数集合
 		List<List<?>> lstlstpara = new ArrayList<List<?>>();
 		int c = -1;
-		sql = "insert into scenariosrules (ruleid,relationserviceid,"
-				+ "condition1,condition2,condition3,condition4,condition5,condition6,condition7,condition8,condition9,condition10,condition11,condition12,condition13,condition14,condition15,condition16,condition17,condition18,condition19,condition20,"
-				+ "ruletype,weight,city,cityname,abovequestionobject,abovestandardquestion,responsetype,"
+		sql = "insert into scenariosrules (ruleid,relationserviceid,";
+		for(int i=1; i<sceneConditionCount;i++) {
+			sql += "condition"+i+",";
+		}
+		sql += "ruletype,weight,city,cityname,abovequestionobject,abovestandardquestion,responsetype,"
 				+ "questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,isedit"
-				+ ") (select ?,relationserviceid,condition1,condition2,condition3,condition4,condition5,condition6,condition7,condition8,condition9,condition10,condition11,condition12,condition13,condition14,condition15,condition16,condition17,condition18,condition19,condition20,"
-				+ "ruletype,?,city,cityname,abovequestionobject,abovestandardquestion,responsetype,"
+				+ ") (select ?,relationserviceid,";
+		for(int i=1; i<sceneConditionCount;i++) {
+			sql += "condition"+i+",";
+		}
+		sql += "ruletype,?,city,cityname,abovequestionobject,abovestandardquestion,responsetype,"
 				+ "questionobject,standardquestion,userquestion,currentnode,interactiveoptions,ruleresponse,ruleresponsetemplate,-1 "
 				+ "from scenariosrules where ruleid=?)";
 		

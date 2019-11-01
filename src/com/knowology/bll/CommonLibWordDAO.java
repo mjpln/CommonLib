@@ -2126,4 +2126,18 @@ public class CommonLibWordDAO {
 		int c = Database.executeNonQueryTransaction(lstSql, lstLstpara);
 		return c;
 	}
+	/**
+	 * 根据词类ID,词条获取词条下的别名
+	 * @param wordclassid
+	 * @param word
+	 * @return
+	 */
+	public static Result getOtherWordByWordClass(String wordclassid,String word){
+		String sql = "";
+		sql = "SELECT t.word  from word t where type='其他别名' ";
+		sql += " and T.STDWORDID = (select wordid from word where type='标准名称' and  word='"+word+"' AND wordclassid="+wordclassid+") ";
+		//文件日志
+		GlobalValue.myLog.info(sql );
+		return Database.executeQuery(sql);
+	}
 }

@@ -17,6 +17,7 @@ import javax.servlet.jsp.jstl.sql.Result;
 
 import org.apache.commons.lang.StringUtils;
 
+import com.alibaba.fastjson.JSONObject;
 import com.knowology.GlobalValue;
 import com.knowology.Bean.ImportNormalqueryBean;
 import com.knowology.Bean.User;
@@ -4454,9 +4455,7 @@ public class CommonLibQueryManageDAO {
 			List<String> tempList = list.get(i);
 			String wordpat = tempList.get(0);
 			String cityCode = tempList.get(1);
-			String query = tempList.get(2);
-			String kbdataid = tempList.get(3);
-			String queryid = tempList.get(4);
+			String kbdataid = tempList.get(2);
 			String wordpatid = "";
 			sql = "delete from wordpat where wordpat like ?  and wordpattype=? and kbdataid=? ";
 			// 定义绑定参数集合
@@ -4464,21 +4463,14 @@ public class CommonLibQueryManageDAO {
 			// 绑定词模like查询的参数
 			lstpara.add("%" + wordpat
 					+ "%");
-//			// 绑定问题类型参数,0代表普通词模
-//			lstpara.add("0");
-			// 绑定问题类型参数,5代表自学习词模
-			
+			// 绑定问题类型参数,0代表普通词模,5代表自学习词模			
 			if(wordpattype == null || "".equals(wordpattype)){
 				lstpara.add("5");
 			}else{
 				lstpara.add(wordpattype);
-			}
-			
-			
+			}			
 			// 绑定摘要id参数
 			lstpara.add(kbdataid);
-//			// 绑定品牌城市
-//			lstpara.add(brand);
 			// 将删除词模的SQL语句放入SQL语句集合中
 			lstSql.add(sql);
 			// 将对应的参数集合放入集合中
@@ -4537,10 +4529,6 @@ public class CommonLibQueryManageDAO {
 			lstSql.add(sql);
 			// 将对应的绑定参数集合放入集合中
 			lstLstpara.add(lstpara);
-			
-			// 更新扩展问训练状态为'是'
-			lstSql.add("update querymanage set istrain='是' where id=? and istrain <> '是'");
-			lstLstpara.add(Arrays.asList(queryid));
 			
 			//文件日志
 			GlobalValue.myLog.info(userid + "#" + sql + "#" + lstpara );
@@ -4911,6 +4899,29 @@ public class CommonLibQueryManageDAO {
 			return "导入失败";
 		}
 		return returnMsg;
+	}
+	/**
+	 * 根据标准问摘要,问题库业务根获取标准问ID
+	 * @param normalAbstract
+	 * @param brand
+	 * @return
+	 */
+	public static String getKbDataIdByNormalQuery(String normalAbstract,String brand){
+		String sql = "select kbdataid,abstract from kbdata where serviceid in (select serviceid from service where brand='"
+				+ brand + "') and abstract='" +normalAbstract + "'";
+		//文件日志
+		GlobalValue.myLog.info(sql);
+		String kbdataid = null;
+		Result rs = Database.executeQuery(sql);
+		if (rs != null && rs.getRowCount() > 0) {
+			for (int i = 0; i < rs.getRowCount(); i++) {
+				 kbdataid = rs.getRows()[i].get("kbdataid") == null ? ""
+						: String.valueOf(rs.getRows()[i].get("kbdataid"));
+				break;				
+				
+			}
+		} 
+		return kbdataid;
 	}
 
 }

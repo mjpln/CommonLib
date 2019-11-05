@@ -2088,7 +2088,7 @@ public class CommonLibWordDAO {
 	 * @param wordclass词类名称
 	 * @return int
 	 */
-	public static int insertOtherWord(String name, String wordid, String wordclassid, User user) {
+	public static int insertOtherWord(String name, String wordid, String wordclassid, String serviceType) {
 		// 定义多条SQL语句集合
 		List<String> lstSql = new ArrayList<String>();
 		// 定义多条SQL语句对应的绑定参数集合
@@ -2099,7 +2099,7 @@ public class CommonLibWordDAO {
 		List<Object> lstpara = new ArrayList<Object>();
 		// 获取词条表的序列值，并绑定参数
 		String word_sid = "";
-		String serviceType = user.getIndustryOrganizationApplication();
+//		String serviceType = user.getIndustryOrganizationApplication();
 		String bussinessFlag = CommonLibMetafieldmappingDAO.getBussinessFlag(serviceType);
 		if (GetConfigValue.isOracle) {
 			word_sid =  (ConstructSerialNum.GetOracleNextValNew("seq_word_id", bussinessFlag));
@@ -2139,5 +2139,50 @@ public class CommonLibWordDAO {
 		//文件日志
 		GlobalValue.myLog.info(sql );
 		return Database.executeQuery(sql);
+	}
+	
+	/**
+	 * 新增词条
+	 * 
+	 * @param name
+	 *            词条名
+	 * @param wordclassid词类名称id
+	 * @param wordclass词类名称
+	 * @return int
+	 */
+	public static int insert2(String name, String wordclassid, String serviceType) {
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		// 定义新增词条的SQL语句
+		String sql = "insert into word (wordid,wordclassid,word,type) values(?,?,?,?)";
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		// 获取词条表的序列值，并绑定参数
+		String wordid = "";
+		String bussinessFlag = CommonLibMetafieldmappingDAO.getBussinessFlag(serviceType);
+		if (GetConfigValue.isOracle) {
+			wordid =  (ConstructSerialNum.GetOracleNextValNew("seq_word_id", bussinessFlag));
+		} else if (GetConfigValue.isMySQL) {
+			wordid = ConstructSerialNum.getSerialIDNew("word", "wordid", bussinessFlag);
+		}
+		lstpara.add(wordid);
+		// 绑定词类id参数
+		lstpara.add(wordclassid);
+		// 绑定词条参数
+		lstpara.add(name);
+		// 绑定词条类型参数
+		lstpara.add("标准名称");
+		// 将SQL语句放入集合中
+		lstSql.add(sql);
+		// 将对应的绑定参数集合放入集合中
+		lstLstpara.add(lstpara);
+		
+		//文件日志
+		GlobalValue.myLog.info( sql + "#" + lstpara );
+		
+		int c = Database.executeNonQueryTransaction(lstSql, lstLstpara);
+		return c;
 	}
 }

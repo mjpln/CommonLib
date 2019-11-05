@@ -82,9 +82,10 @@ public class HttpClient {
          * 这个属性是新加的属性，因为目前版本是可以共享连接池的。
          * setSocketTimeout：请求获取数据的超时时间(即响应时间)，单位毫秒。 如果访问一个接口，多少时间内无法返回数据，就直接放弃此次调用。
          */
-        RequestConfig requestConfig = RequestConfig.custom()
-                .setConnectTimeout(10000).setConnectionRequestTimeout(1000)
-                .setSocketTimeout(10000).build();
+//        RequestConfig requestConfig = RequestConfig.custom()
+//                .setConnectTimeout(10000).setConnectionRequestTimeout(1000)
+//                .setSocketTimeout(10000).build();
+        RequestConfig requestConfig = RequestConfig.custom().build();
 
         httpPost.setConfig(requestConfig);
 
@@ -111,21 +112,21 @@ public class HttpClient {
             logger.info("发送HTTP POST请求,响应结果reponseStatus="+ response.getStatusLine().getStatusCode()+",httpResult="+ content);
         } catch (SocketTimeoutException s) {
             logger.error("接口请求超时 ,", s);
-            result.put("success", false);
+            result.put("code", false);
             result.put("msg", "调用接口超时");
 
         } catch (UnsupportedEncodingException e) {
-            result.put("success", false);
+            result.put("code", false);
             result.put("msg", "发送http请求异常");
             logger.error("发送http post请求异常", e);
             e.printStackTrace();
         } catch (ClientProtocolException e) {
-            result.put("success", false);
+            result.put("code", false);
             result.put("msg", "发送http请求异常");
             logger.error("发送http请求异常", e);
             e.printStackTrace();
         } catch (IOException e) {
-            result.put("success", false);
+            result.put("code", false);
             result.put("msg", "发送http请求异常");
             logger.error("发送http请求异常", e);
             e.printStackTrace();

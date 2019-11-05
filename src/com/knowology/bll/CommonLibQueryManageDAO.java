@@ -4923,5 +4923,281 @@ public class CommonLibQueryManageDAO {
 		} 
 		return kbdataid;
 	}
+	/**标准问发现新词插入词类词条
+	 * 
+	 * @param info
+	 * @return
+	 */
+	public static int insertWordClassAndItem2(String serviceType,
+			List<List<Object>> info) {
+		
+		String returnMsg = "新增成功！";
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		// 定义sql
+		String sql = "";
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		
+		// Map<wordclassid,词条>
+		Map<String, List<String>> map = new LinkedHashMap<String, List<String>>();
+		// Map<wordclass, wordclassid>
+		Map<String, String> nameToIdMap = new LinkedHashMap<String, String>();
+		
+		//获得商家标识符
+//		String serviceType = user.getIndustryOrganizationApplication();
+		String bussinessFlag = CommonLibMetafieldmappingDAO.getBussinessFlag(serviceType);
+		
+		
+		int index = 0;
+		// 遍历每一行
+		for (List<Object> line : info){
+			index++;
+			// 词类，如果包含英文统一转化为大写
+			String wordclass = line.get(0) == null ? "" : line.get(0).toString().replace("近类", "").trim().toUpperCase();
+			// 词条，如果包含英文统一转化为大写
+			String word = line.get(1) == null ? "" : line.get(1).toString().trim().toUpperCase();
+			// 如果词类/词条为空，则略过这一行,词条长度大于4也略过这一行
+			if ("".equals(wordclass)){
+				returnMsg = returnMsg + "<br/>第" + index + "条数据同义词为空！";
+				continue;
+			}
+			// 词类未收集
+			if (!nameToIdMap.containsKey(wordclass + "近类")){
+				String checkWordclassSql = "select wordclassid from wordclass where container='基础' and wordclass = '" + wordclass + "近类" + "'";
+				Result checkWordclassResult = Database.executeQuery(checkWordclassSql);
+				// 库中存在该词类
+				if (checkWordclassResult != null && checkWordclassResult.getRowCount() > 0){
+					String wordclassid = checkWordclassResult.getRows()[0].get("wordclassid").toString();
+					String  checkWordSql = "select * from word where wordclassid='" + wordclassid + "'";
+					Result checkWordResult = Database.executeQuery(checkWordSql);
+					// 词类存在，则把所有库中词条放入map中
+					if (checkWordResult != null && checkWordResult.getRowCount() > 0){
+						List<String> wordList = new ArrayList<String>();
+						for (int i = 0;i < checkWordResult.getRowCount();i++){
+							wordList.add(checkWordResult.getRows()[i].get("word").toString());
+						}
+						// 同义词不在库中
+						if (!wordList.contains(wordclass)){
+							sql = "";
+							lstpara = new ArrayList<Object>();
+							
+							// 获取词条表的序列值
+							String wordid = "";
+							if (GetConfigValue.isOracle) {
+								wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+							} else if (GetConfigValue.isMySQL) {
+								wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+							}
+							sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+							// 绑定id参数
+							lstpara.add(wordid);
+							// 绑定词类id参数
+							lstpara.add(wordclassid);
+							// 绑定词类名称
+							lstpara.add(wordclass);
+							// 绑定类型参数
+							lstpara.add("标准名称");
+							// 将SQL语句放入集合中
+							lstSql.add(sql);
+							// 将对应的绑定参数集合放入集合中
+							lstLstpara.add(lstpara);
+							
+							wordList.add(wordclass);
+						}
+						// 词条不在库中
+						if (!"".equals(word) && !wordList.contains(word)){
+							sql = "";
+							lstpara = new ArrayList<Object>();
+							
+							// 获取词条表的序列值
+							String wordid = "";
+							if (GetConfigValue.isOracle) {
+								wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+							} else if (GetConfigValue.isMySQL) {
+								wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+							}
+							sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+							// 绑定id参数
+							lstpara.add(wordid);
+							// 绑定词类id参数
+							lstpara.add(wordclassid);
+							// 绑定词类名称
+							lstpara.add(word);
+							// 绑定类型参数
+							lstpara.add("标准名称");
+							// 将SQL语句放入集合中
+							lstSql.add(sql);
+							// 将对应的绑定参数集合放入集合中
+							lstLstpara.add(lstpara);
+							
+							wordList.add(word);
+						}
+						nameToIdMap.put(wordclass + "近类", wordclassid);
+						map.put(wordclassid, wordList);
+					}
+				} else {// 库中不存在该词类，则新建词类
+					
+					String wordclassid = "";
+					if (GetConfigValue.isOracle) {
+						wordclassid = ConstructSerialNum.GetOracleNextValNew("seq_wordclass_id",bussinessFlag);
+					} else if (GetConfigValue.isMySQL) {
+						wordclassid = ConstructSerialNum.getSerialIDNew("wordclass","wordclassid",bussinessFlag);
+					}
+					// 插入词类的SQL语句
+					sql = "insert into wordclass(wordclassid,wordclass,container) values(?,?,?)";
+					// 定义绑定参数集合
+					lstpara = new ArrayList<Object>();
+					// 绑定id参数
+					lstpara.add(wordclassid);
+					// 绑定词类参数
+					lstpara.add(wordclass + "近类");
+					// 绑定类型参数
+					lstpara.add("基础");
+					// 将SQL语句放入集合中
+					lstSql.add(sql);
+					// 将对应的绑定参数集合放入集合中
+					lstLstpara.add(lstpara);
+					
+					// 新建词类完成后添加对应的词条
+					// 获取词条表的序列值
+					String wordid = "";
+					
+					if (GetConfigValue.isOracle) {
+						wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+					} else if (GetConfigValue.isMySQL) {
+						wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+					}
+					sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+					// 定义绑定参数集合
+					lstpara = new ArrayList<Object>();
+					// 绑定id参数
+					lstpara.add(wordid);
+					// 绑定词类id参数
+					lstpara.add(wordclassid);
+					// 绑定词类名称
+					lstpara.add(wordclass);
+					// 绑定类型参数
+					lstpara.add("标准名称");
+					// 将SQL语句放入集合中
+					lstSql.add(sql);
+					// 将对应的绑定参数集合放入集合中
+					lstLstpara.add(lstpara);
+					
+					List<String> wordList = new ArrayList<String>();
+					wordList.add(wordclass);
+					
+					if (!"".equals(word) && !wordclass.equals(word)){
+						if (GetConfigValue.isOracle) {
+							wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+						} else if (GetConfigValue.isMySQL) {
+							wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+						}
+						sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+						// 定义绑定参数集合
+						lstpara = new ArrayList<Object>();
+						// 绑定id参数
+						lstpara.add(wordid);
+						// 绑定词类id参数
+						lstpara.add(wordclassid);
+						// 绑定词类名称
+						lstpara.add(word);
+						// 绑定类型参数
+						lstpara.add("标准名称");
+						// 将SQL语句放入集合中
+						lstSql.add(sql);
+						// 将对应的绑定参数集合放入集合中
+						lstLstpara.add(lstpara);
+
+						wordList.add(word);
+					}
+					
+					
+					nameToIdMap.put(wordclass + "近类", wordclassid);
+					map.put(wordclassid, wordList);
+				}
+			}else {// 该词类已收集
+				String wordclassid = nameToIdMap.get(wordclass + "近类");
+				List<String> wordList = new ArrayList<String>();
+				wordList = map.get(wordclassid);
+				
+				// 同义词不在库中
+				if (!wordList.contains(wordclass)){
+					sql = "";
+					lstpara = new ArrayList<Object>();
+					
+					// 获取词条表的序列值
+					String wordid = "";
+					if (GetConfigValue.isOracle) {
+						wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+					} else if (GetConfigValue.isMySQL) {
+						wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+					}
+					sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+					// 绑定id参数
+					lstpara.add(wordid);
+					// 绑定词类id参数
+					lstpara.add(wordclassid);
+					// 绑定词类名称
+					lstpara.add(wordclass);
+					// 绑定类型参数
+					lstpara.add("标准名称");
+					// 将SQL语句放入集合中
+					lstSql.add(sql);
+					// 将对应的绑定参数集合放入集合中
+					lstLstpara.add(lstpara);
+					
+					wordList.add(wordclass);
+				}
+				
+				// 词条未收集
+				if(!wordList.contains(word)){
+					sql = "";
+					lstpara = new ArrayList<Object>();
+					
+					// 获取词条表的序列值
+					String wordid = "";
+					if (GetConfigValue.isOracle) {
+						wordid = ConstructSerialNum.GetOracleNextValNew("seq_word_id",bussinessFlag);
+					} else if (GetConfigValue.isMySQL) {
+						wordid = ConstructSerialNum.getSerialIDNew("word", "wordid",bussinessFlag);
+					}
+					sql = "insert into word (wordid,wordclassid,word,type) values (?,?,?,?)";
+					// 绑定id参数
+					lstpara.add(wordid);
+					// 绑定词类id参数
+					lstpara.add(wordclassid);
+					// 绑定词类名称
+					lstpara.add(word);
+					// 绑定类型参数
+					lstpara.add("标准名称");
+					// 将SQL语句放入集合中
+					lstSql.add(sql);
+					// 将对应的绑定参数集合放入集合中
+					lstLstpara.add(lstpara);
+					
+					wordList.add(word);
+					map.put(wordclassid, wordList);
+				}
+			}
+		}
+		
+		int count = -1;
+		count = Database.executeNonQueryTransaction(lstSql, lstLstpara);
+		if (count == 0){
+			returnMsg =   returnMsg+"！";
+	   }
+		System.out.println(returnMsg);
+		
+//		if (count == 0){
+//			return returnMsg + "！";
+//		}else if (count == -1){
+//			return "导入失败";
+//		}
+		return count;
+	}
+
 
 }

@@ -1934,7 +1934,7 @@ public class CommonLibKbdataAttrDAO {
 		// 问题库业务
 		if(service != null && !service.equals("")) {
 			if(GetConfigValue.isOracle){
-				innerSql += " and abstractid in (select kbdataid || '' from kbdata where serviceid in (select serviceid from service where service like '%"+service+"%' and brand like '"+industry.split("->")[0]+"问题库'))";
+				innerSql += " and abstractid in (select kbdataid  from kbdata where serviceid in (select serviceid from service where service like '%"+service+"%' and brand like '"+industry.split("->")[0]+"问题库'))";
 			}else{
 				String tempSql = "";
 				Result tempRs = null;
@@ -1963,7 +1963,7 @@ public class CommonLibKbdataAttrDAO {
 		// 问题库摘要
 		if (sabstract != null && !sabstract.equals("")) {
 			if(GetConfigValue.isOracle){
-				innerSql += " and abstractid in (select kbdataid || '' from kbdata where serviceid in (select serviceid from service where service like '%"+service+"%' and brand like '"+industry.split("->")[0]+"问题库')"
+				innerSql += " and abstractid in (select kbdataid  from kbdata where serviceid in (select serviceid from service where service like '%"+service+"%' and brand like '"+industry.split("->")[0]+"问题库')"
 //				+ " and topic like '复用-%'"
 				+ " and abstract like '%>%"+sabstract+"%')";
 			}else{
@@ -2289,9 +2289,13 @@ public class CommonLibKbdataAttrDAO {
 	 * @return
 	 */
 	private static String constructChildAbstract(List<String> serviceRoots,String _abstract,String industry,int columnNum) {
-		String sql = "SELECT  NULL AS serviceorproductinfoid,'' AS abstractid,NULL AS STATUS,'' AS inserttime,null as inserttime2,k.city AS city,'' AS attr1,'' AS attr2,'' AS attr3,s.service AS attr4,k.abstract AS attr5,cast(k.kbdataid as varchar(50)) AS attr6,'" 
-			+ industry 
-			+ "' AS attr7, ";
+		String sql = "SELECT  NULL AS serviceorproductinfoid,'' AS abstractid,NULL AS STATUS,'' AS inserttime,null as inserttime2,k.city AS city,'' AS attr1,'' AS attr2,'' AS attr3,s.service AS attr4,k.abstract AS attr5";
+		if(!(GetConfigValue.isToMysql)){
+			sql = sql + ",cast(k.kbdataid as varchar(50)) AS attr6,'";
+		}else{
+			 sql = sql + ",k.kbdataid AS attr6,'";
+		}
+		sql = sql + industry + "' AS attr7, ";
 //			+ "' AS attr7,'' AS attr8,'' AS attr9,'' AS attr10,'' AS attr11,'' AS attr12,'' AS attr13,'' AS attr14,'' AS attr15,'' AS attr16,'' As attr17, '' As attr18  FROM  service s , kbdata k WHERE s.serviceid=k.serviceid AND s.brand IN(";
 		for (int i=8 ; i<=20 ; i++){
 			sql = sql +  " '' AS attr" + i +",";

@@ -5127,8 +5127,8 @@ public class CommonLibQueryManageDAO {
 			User user, String userCityCode, String serviceCityCode, String returnValue) {
 		String updateSql = "update kbdata set city =? where kbdataid =? ";
 		String updateWordpatSql = " update wordpat set city =? where kbdataid =? and city =? and wordpat not like '%来源=%'";
-		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID) values(?,?,?,?,?)";
-		String insertKbdataSql = "insert into kbdata(serviceid,kbdataid,topic,abstract,city,returnvalue) values (?,?,?,?,?,?)";
+		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,RETURNVALUE) values(?,?,?,?,?,?)";
+		String insertKbdataSql = "insert into kbdata(serviceid,kbdataid,topic,abstract,city) values (?,?,?,?,?)";
 
 		List<String> lstsql = new ArrayList<String>();
 		List<List<?>> lstlstpara = new ArrayList<List<?>>();
@@ -5158,8 +5158,6 @@ public class CommonLibQueryManageDAO {
 			lstpara.add(abs);
 			// 标准问默认取业务地市
 			lstpara.add(serviceCityCode);
-			// 新增返回值 --update by sundj 20191106
-			lstpara.add(returnValue);
 
 			lstsql.add(insertKbdataSql);
 			lstlstpara.add(lstpara);
@@ -5192,6 +5190,8 @@ public class CommonLibQueryManageDAO {
 			}
 			lstpara.add(cityCode);
 			lstpara.add(user.getUserID());
+			// 新增返回值 --update by sundj 20191106
+			lstpara.add(returnValue);
 			lstsql.add(insertSql);
 			lstlstpara.add(lstpara);
 			// 文件日志
@@ -5258,4 +5258,84 @@ public class CommonLibQueryManageDAO {
 		return rs;
 	}
 
+	/**
+	 * @description 新增客户问题-by 场景配置
+	 * @param normalQuery
+	 * @param customerQuery
+	 * @param cityCode
+	 * @param serviceType
+	 * @param workerid
+	 * @param
+	 * @return
+	 * @returnType int
+	 */
+	public static int addCustomerQueryByScene(String normalQuery, String customerQuery,String returnValue, String cityCode, User user) {
+		List<String> lstsql = new ArrayList<String>();
+		List<List<?>> lstlstpara = new ArrayList<List<?>>();
+		List<Object> lstpara = new ArrayList<Object>();
+		int rs = -1;
+		String querymanageId = "";
+		// 获得商家标识符
+		String bussinessFlag = CommonLibMetafieldmappingDAO.getBussinessFlag(user.getIndustryOrganizationApplication());
+		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,QUERYTYPE,RETURNVALUE) values(?,?,?,?,?,0,?)";
+		String updateSql = " update querymanage set CITY=? , EDITTIME=sysdate,RETURNVALUE=? where QUERY=? and KBDATAID=? and QUERYTYPE = 0";
+		Map<String, String> map = getCustomerQueryDic(normalQuery, 0);
+		Map<String, Map<String, String>> insertOrUpdateDic = getCustomerQueryInsertOrUpdateDic(map, customerQuery,
+				cityCode);
+		if (insertOrUpdateDic.size() > 0) {
+			for (Map.Entry<String, Map<String, String>> entry : insertOrUpdateDic.entrySet()) {
+				String type = entry.getKey();
+				if ("insert".equals(type)) {// insert
+					for (Map.Entry<String, String> insertDic : entry.getValue().entrySet()) {
+						String query = insertDic.getKey();
+						String city = insertDic.getValue();
+						if (GetConfigValue.isOracle) {
+							querymanageId = ConstructSerialNum.GetOracleNextValNew("seq_querymanage_id", bussinessFlag);
+						} else if (GetConfigValue.isMySQL) {
+							querymanageId = ConstructSerialNum.getSerialIDNew("querymanage", "id", bussinessFlag);
+						}
+						lstpara = new ArrayList<Object>();
+						lstpara.add(querymanageId);
+						lstpara.add(normalQuery);
+						lstpara.add(query);
+						lstpara.add(city);
+						lstpara.add(user.getUserID());
+						lstpara.add(returnValue);
+						lstsql.add(insertSql);
+						lstlstpara.add(lstpara);
+						// 日志 insert into
+						// operationlog(ip,brand,service,operation,city,workerid,workername,object,tablename
+						String[] serviceArr = getServiceByKbdataid(normalQuery);
+						lstsql.add(getInsertLogSql());
+						lstlstpara.add(getSQLParams(user.getUserIP(), user.getBrand(), serviceArr[0], "增加客户问题", " ",
+								user.getUserID(), user.getUserName(), query, "QUERYMANAGE"));
+
+					}
+				} else {// update
+					for (Map.Entry<String, String> insertDic : entry.getValue().entrySet()) {
+						String query = insertDic.getKey();
+						String city = insertDic.getValue();
+						lstpara = new ArrayList<Object>();
+						lstpara.add(city);
+						lstpara.add(returnValue);
+						lstpara.add(query);
+						lstpara.add(normalQuery);
+						lstsql.add(updateSql);
+						lstlstpara.add(lstpara);
+						// 日志 insert into
+						// operationlog(ip,brand,service,operation,city,workerid,workername,object,tablename
+						String[] serviceArr = getServiceByKbdataid(normalQuery);
+						lstsql.add(getInsertLogSql());
+						lstlstpara.add(getSQLParams(user.getUserIP(), user.getBrand(), serviceArr[0], "更新客户问题", " ",
+								user.getUserID(), user.getUserName(), query, "QUERYMANAGE"));
+					}
+				}
+			}
+			return Database.executeNonQueryTransaction(lstsql, lstlstpara);
+		} else {
+			rs = 1;// 新增客户问题已存在默认插入成功，后续优化给出提示 TODO
+		}
+
+		return rs;
+	}
 }

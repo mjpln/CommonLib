@@ -1389,6 +1389,7 @@ public class CommonLibQueryManageDAO {
 		String sql = "";
 		String bussinessFlag = CommonLibMetafieldmappingDAO.getBussinessFlag(serviceType);
 		String brand = serviceType.split("->")[1];
+		String backqueryid="";
 		for (int i = 0; i < list.size(); i++) {
 			List<String> tempList = list.get(i);
 			String wordpat = tempList.get(0);
@@ -1397,37 +1398,45 @@ public class CommonLibQueryManageDAO {
 			String kbdataid = tempList.get(3);
 			String queryid = tempList.get(4);
 			String wordpatid = "";
-			sql = "delete from wordpat where wordpat like ?  and wordpattype=? and kbdataid=? ";
-			// 定义绑定参数集合
-			lstpara = new ArrayList<Object>();
-			// 绑定词模like查询的参数，为了增加精准词模,改为动态获取词模后的字符串
-			String split = "@2#";
-			if (wordpat.contains("@1#")) {
-				split = "@1#";
+			if(!backqueryid.equals(queryid)){//用于对一个扩展问的两条词模（普通，精准）执行一次删除操作
+				sql = "delete from wordpat where wordpat like ?  and wordpattype=? and kbdataid=? ";
+				// 定义绑定参数集合
+				lstpara = new ArrayList<Object>();
+				// 绑定词模like查询的参数，为了增加精准词模,改为动态获取词模后的字符串
+				String split = "@2#";
+				if (wordpat.contains("@1#")) {
+					split = "@1#";
+				}
+				String wordpatcon = wordpat.split(split)[1];
+				//针对编者等于场景
+				lstpara.add("%" + split + wordpatcon.split("&")[0]+"&来源=\""+query.replace("&", "\\and") + "\"%");
+				
+
+				// // 绑定问题类型参数,0代表普通词模
+				// lstpara.add("0");
+				// 绑定问题类型参数,5代表自学习词模
+
+				if (wordpattype == null || "".equals(wordpattype)) {
+					lstpara.add("5");
+				} else {
+					lstpara.add(wordpattype);
+				}
+
+				// 绑定摘要id参数
+				lstpara.add(kbdataid);
+				// // 绑定品牌城市
+				// lstpara.add(brand);
+				// 将删除词模的SQL语句放入SQL语句集合中
+				lstSql.add(sql);
+				// 将对应的参数集合放入集合中
+				lstLstpara.add(lstpara);
+
+				// 文件日志
+				GlobalValue.myLog.info(userid + "#" + sql + "#" + lstpara);
 			}
-			String wordpatcon = wordpat.split(split)[1];
-			lstpara.add("%" + split + wordpatcon + "%");
-			// // 绑定问题类型参数,0代表普通词模
-			// lstpara.add("0");
-			// 绑定问题类型参数,5代表自学习词模
+			
+			backqueryid = queryid;
 
-			if (wordpattype == null || "".equals(wordpattype)) {
-				lstpara.add("5");
-			} else {
-				lstpara.add(wordpattype);
-			}
-
-			// 绑定摘要id参数
-			lstpara.add(kbdataid);
-			// // 绑定品牌城市
-			// lstpara.add(brand);
-			// 将删除词模的SQL语句放入SQL语句集合中
-			lstSql.add(sql);
-			// 将对应的参数集合放入集合中
-			lstLstpara.add(lstpara);
-
-			// 文件日志
-			GlobalValue.myLog.info(userid + "#" + sql + "#" + lstpara);
 
 			// 获取插入词模的序列
 			if (GetConfigValue.isOracle) {
@@ -5213,17 +5222,17 @@ public class CommonLibQueryManageDAO {
 	 * 得到标准问需要额外增加的返回值
 	 * @param kbdataIdList
 	 */
-	public static Result getReturnValueByKbdataId(List<String> kbdataIds){
-		String sql = "select kbdataid,returnvalue from kbdata where  (";
-		if(kbdataIds.isEmpty()){
+	public static Result getReturnValueByQueryId(List<String> queryIds){
+		String sql = "select id queryid,returnvalue from querymanage where  (";
+		if(queryIds.isEmpty()){
 			return null;
 		}
 		// 绑定参数
-		for (int i = 0; i < kbdataIds.size(); i++) {
+		for (int i = 0; i < queryIds.size(); i++) {
 			if (i == 0) {
-				sql += "kbdataid = " + kbdataIds.get(i);
+				sql += "id = " + queryIds.get(i);
 			} else {
-				sql += " or kbdataid = " + kbdataIds.get(i);
+				sql += " or id = " + queryIds.get(i);
 			}
 		}
 		sql += " )";
@@ -5263,13 +5272,14 @@ public class CommonLibQueryManageDAO {
 	 * @param normalQuery
 	 * @param customerQuery
 	 * @param cityCode
-	 * @param serviceType
+	 * @param returnValue 词模返回值
 	 * @param workerid
-	 * @param
+	 * @param isstrictExclusion 是否严格排除标识
+	 * @param queryType 问题类型
 	 * @return
 	 * @returnType int
 	 */
-	public static int addCustomerQueryByScene(String normalQuery, String customerQuery,String returnValue, String cityCode, User user) {
+	public static int addCustomerQueryByScene(String normalQuery, String customerQuery,String returnValue, String cityCode,int queryType,String isstrictExclusion, User user) {
 		List<String> lstsql = new ArrayList<String>();
 		List<List<?>> lstlstpara = new ArrayList<List<?>>();
 		List<Object> lstpara = new ArrayList<Object>();
@@ -5277,8 +5287,8 @@ public class CommonLibQueryManageDAO {
 		String querymanageId = "";
 		// 获得商家标识符
 		String bussinessFlag = CommonLibMetafieldmappingDAO.getBussinessFlag(user.getIndustryOrganizationApplication());
-		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,QUERYTYPE,RETURNVALUE) values(?,?,?,?,?,0,?)";
-		String updateSql = " update querymanage set CITY=? , EDITTIME=sysdate,RETURNVALUE=? where QUERY=? and KBDATAID=? and QUERYTYPE = 0";
+		String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,QUERYTYPE,ISSTRICTEXCLUSION,RETURNVALUE) values(?,?,?,?,?,?,?,?)";
+		String updateSql = " update querymanage set CITY=? , EDITTIME=sysdate,RETURNVALUE=? where QUERY=? and KBDATAID=? and QUERYTYPE = ?";
 		Map<String, String> map = getCustomerQueryDic(normalQuery, 0);
 		Map<String, Map<String, String>> insertOrUpdateDic = getCustomerQueryInsertOrUpdateDic(map, customerQuery,
 				cityCode);
@@ -5300,6 +5310,8 @@ public class CommonLibQueryManageDAO {
 						lstpara.add(query);
 						lstpara.add(city);
 						lstpara.add(user.getUserID());
+						lstpara.add(queryType);
+						lstpara.add(isstrictExclusion);
 						lstpara.add(returnValue);
 						lstsql.add(insertSql);
 						lstlstpara.add(lstpara);
@@ -5320,6 +5332,7 @@ public class CommonLibQueryManageDAO {
 						lstpara.add(returnValue);
 						lstpara.add(query);
 						lstpara.add(normalQuery);
+						lstpara.add(queryType);
 						lstsql.add(updateSql);
 						lstlstpara.add(lstpara);
 						// 日志 insert into
@@ -5337,5 +5350,297 @@ public class CommonLibQueryManageDAO {
 		}
 
 		return rs;
+	}
+	/**
+	 * @description 导入客户问题-场景配置 update by sundj 20191113
+	 * @param info
+	 * @param map
+	 * @param serviceCityList
+	 * @param serviceid
+	 * @param bussinessFlag
+	 * @param workerid
+	 * @return
+	 * @returnType int
+	 */
+	public static int importQueryByScene(Map<ImportNormalqueryBean, Map<String, List<String>>> info,
+			Map<String, Map<String, String>> map, List<String> serviceCityList, String serviceid, String bussinessFlag,
+			String workerid, int querytype,String returnvalue) {
+		// 定义多条SQL语句集合
+		List<String> lstSql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstLstpara = new ArrayList<List<?>>();
+		// 定义绑定参数集合
+		List<Object> lstpara = new ArrayList<Object>();
+		String sql = "";
+		String querymanageId = "";
+		// 是否严格排除状态
+		String removeQueryStatus = "";
+		if (1 == querytype) {// 排除问题，默认严格排除状态为否
+			removeQueryStatus = "否";
+		}
+		// 翻转info
+		List<ImportNormalqueryBean> infoKeys = new ArrayList<ImportNormalqueryBean>(info.keySet());
+		Collections.reverse(infoKeys);
+		// for (Entry<ImportNormalqueryBean, Map<String, List<String>>> entry :
+		// info.entrySet()) {
+		for (ImportNormalqueryBean normalqueryBean : infoKeys) {
+			List<String> cityList = new ArrayList<String>();
+			// ImportNormalqueryBean normalqueryBean = entry.getKey();
+			String normalquery = normalqueryBean.getNormalquery();
+			String responsetype = normalqueryBean.getResponsetype();
+			String interacttype = normalqueryBean.getInteracttype();
+			Map<String, List<String>> queryAndCity = info.get(normalqueryBean);
+			String customerquery = "";
+			if (map.containsKey(normalquery)) {// 现有业务下已存在该标准问，标准问不做导入操作,此处不做标准问题city比较，后补充
+												// TODO
+				Map<String, String> tempMap = map.get(normalquery);
+				String kbdataid = tempMap.get("kbdataid");
+				String abscity = tempMap.get("abscity");
+				// 扩展问地市集合
+				String cityListString = "";
+				for (Map.Entry<String, List<String>> e : queryAndCity.entrySet()) {
+					customerquery = e.getKey();
+					cityList = e.getValue();
+					String oldcity = tempMap.get(customerquery);
+					String oldcityArray[] = {};
+					if (!"".equals(oldcity) && oldcity != null) {
+						oldcityArray = oldcity.split(",");
+					}
+					List<String> oldCitylist = new ArrayList<String>(Arrays.asList(oldcityArray));
+					if (cityList.size() > 0) {
+						cityList.addAll(oldCitylist);
+					}
+
+					Set set = new HashSet(cityList);
+					List<String> newCityCodelist = new ArrayList<String>(set);
+					Collections.sort(newCityCodelist);
+					String newCityCode = StringUtils.join(newCityCodelist.toArray(), ",");
+
+					// 要导入的客户问地市集合
+					List<String> cityList2 = e.getValue();
+					String cityListStr = StringUtils.join(cityList2.toArray(), ",");
+					cityListString = unionCityCodes(cityListString, cityListStr);
+
+					if (serviceCityList.size() == 1 && !serviceCityList.get(0).endsWith("0000")
+							&& !serviceCityList.contains("全国")) {// 省级以下用户 TODO
+
+					} else {// 省级用户
+						if (tempMap.containsKey(customerquery)) {// 标准问下存在客户问，补充客户问地市并做修改
+							// 修改客户问题cityid
+							sql = "update querymanage set  city=?,returnvalue=?  where query =? and kbdataid =? and querytype=? ";
+							lstpara = new ArrayList<Object>();
+							lstpara.add(newCityCode);
+							//新增修改返回值 update by sundj 20191113
+							lstpara.add(returnvalue);
+							lstpara.add(customerquery);
+							lstpara.add(kbdataid);
+							lstpara.add(querytype);
+							lstSql.add(sql);
+							lstLstpara.add(lstpara);
+
+							// 文件日志
+							GlobalValue.myLog.info(workerid + "#" + sql + "#" + lstpara);
+
+							// 修改客户问题对应词模
+							sql = "update  wordpat set city =? where wordpat like ?  and wordpattype=? and kbdataid=?";
+							// 定义绑定参数集合
+							lstpara = new ArrayList<Object>();
+							lstpara.add(newCityCode.replace(",", "|"));
+							// 绑定词模like查询的参数
+							lstpara.add("%@2#编者=\"问题库\"&来源=\"" + customerquery.replace("&", "\\and") + "\"%");
+							// // 绑定问题类型参数,0代表普通词模
+							// lstpara.add("0");
+
+							// 绑定问题类型参数,5代表自学习词模
+							lstpara.add("5");
+
+							// 绑定摘要id参数
+							lstpara.add(kbdataid);
+							// 将删除词模的SQL语句放入SQL语句集合中
+							lstSql.add(sql);
+							// 将对应的参数集合放入集合中
+							lstLstpara.add(lstpara);
+
+							// 文件日志
+							GlobalValue.myLog.info(workerid + "#" + sql + "#" + lstpara);
+
+						} else {// 标准问下不存在客户问题，直接insert
+							sql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,QUERYTYPE,ISSTRICTEXCLUSION,RETURNVALUE) values(?,?,?,?,?,?,?,?)";
+
+							if (GetConfigValue.isOracle) {
+								querymanageId = ConstructSerialNum.GetOracleNextValNew("seq_querymanage_id",
+										bussinessFlag);
+							} else if (GetConfigValue.isMySQL) {
+								querymanageId = ConstructSerialNum.getSerialIDNew("querymanage", "id", bussinessFlag);
+							}
+							lstpara = new ArrayList<Object>();
+							lstpara.add(querymanageId);
+							lstpara.add(kbdataid);
+							lstpara.add(customerquery);
+							lstpara.add(StringUtils.join(cityList.toArray(), ","));
+							lstpara.add(workerid);
+							lstpara.add(querytype);
+							lstpara.add(removeQueryStatus);
+							//新增修改返回值 update by sundj 20191113
+							lstpara.add(returnvalue);
+							lstSql.add(sql);
+							lstLstpara.add(lstpara);
+
+							// 文件日志
+							GlobalValue.myLog.info(workerid + "#" + sql + "#" + lstpara);
+
+						}
+
+					}
+
+				}
+
+				// 合并修改标准问扩展问地市
+				String oldabscity = tempMap.get(normalquery);
+				String oldabscityArray[] = {};
+				List<String> oldabscityList = new ArrayList<String>();
+				if (!"".equals(oldabscity) && oldabscity != null) {
+					oldabscityArray = oldabscity.split(",");
+					oldabscityList = new ArrayList<String>(Arrays.asList(oldabscityArray));
+				}
+				String cityListStringArray[] = {};
+				if (!"".equals(cityListString) && cityListString != null) {
+					cityListStringArray = cityListString.split(",");
+				}
+				List<String> cityListStringList = new ArrayList<String>(Arrays.asList(cityListStringArray));
+				if (oldabscityList.size() > 0) {
+					oldabscityList.addAll(cityListStringList);
+				}
+
+				Set absset = new HashSet(oldabscityList);
+				List<String> newabsCityCodelist = new ArrayList<String>(absset);
+				Collections.sort(newabsCityCodelist);
+				String newabsCityCode = StringUtils.join(newabsCityCodelist.toArray(), ",");
+
+				// 修改标准问扩展问地市
+				sql = "update querymanage set  city=?,RETURNVALUE=?  where query =? and kbdataid =? and querytype=? ";
+				lstpara = new ArrayList<Object>();
+				lstpara.add(newabsCityCode);
+				//新增修改返回值 update by sundj 20191113
+				lstpara.add(returnvalue);
+				lstpara.add(normalquery);
+				lstpara.add(kbdataid);
+				lstpara.add(querytype);
+				lstSql.add(sql);
+				lstLstpara.add(lstpara);
+
+				// 文件日志
+				GlobalValue.myLog.info(workerid + "#" + sql + "#" + lstpara);
+
+			} else {// 现有业务下不存在该标准问直接insert
+
+				String insertKbdataSql = "insert into kbdata(serviceid,kbdataid,topic,abstract,city,responsetype,interacttype) values (?,?,?,?,?,?,?)";
+				String kbdataid = "";
+				// 新增摘要
+				if (GetConfigValue.isOracle) {
+					kbdataid = ConstructSerialNum.GetOracleNextValNew("SEQ_KBDATA_ID", bussinessFlag);
+				} else if (GetConfigValue.isMySQL) {
+					kbdataid = ConstructSerialNum.getSerialIDNew("kbdata", "kbdataid", bussinessFlag);
+				}
+				String service = CommonLibServiceDAO.getNameByserviceid(serviceid);
+				String abs = "<" + service + ">" + normalquery;
+				// 修改 START 标准问地市取业务地市 by lixu
+				String serviceCityListString = StringUtils.join(serviceCityList.toArray(), ",");
+				String userCityListString = "";
+				// 修改 END 20170310 by zhaolipeng
+
+				// 插入摘要
+				lstpara = new ArrayList<Object>();
+				lstpara.add(serviceid);
+				lstpara.add(kbdataid);
+				lstpara.add("常见问题");
+				lstpara.add(abs);
+				lstpara.add(serviceCityListString);
+				lstpara.add(responsetype);
+				lstpara.add(interacttype);
+				lstSql.add(insertKbdataSql);
+				lstLstpara.add(lstpara);
+
+				// 文件日志
+				GlobalValue.myLog.info(workerid + "#" + insertKbdataSql + "#" + lstpara);
+
+				/*
+				 * 修改 START 标准问地市取客户问地市并集 20170310 by zhaolipeng
+				 * 内容：标准问地市变为根据其下客户问地市的并集 修改下面代码顺序: 摘要插入->标准问作为客户问插入->客户问插入，改为
+				 * 客户问插入（获得并集后的地市）->摘要插入->标准问作为客户问插入
+				 *
+				 * 修改 END 20170310 by zhaolipeng
+				 */
+
+				// 存在客户问时插入
+				String insertSql = "insert into querymanage(ID,KBDATAID,QUERY,CITY,WORKERID,QUERYTYPE,ISSTRICTEXCLUSION,RETURNVALUE) values(?,?,?,?,?,?,?,?)";
+				for (Map.Entry<String, List<String>> e : queryAndCity.entrySet()) {
+					customerquery = e.getKey();
+
+					// 修改 START 防止重复导入标准问 20170310 by zhaolipeng
+					// 客户问与其标准一样的话，不做导入（防止重复导入）
+					if (customerquery.equals(normalquery)) {
+						continue;
+					}
+					// 修改 END 20170310 by zhaolipeng
+
+					if (!"".equals(customerquery)) {
+						cityList = e.getValue();
+						String cityListStr = StringUtils.join(cityList.toArray(), ",");
+						// 修改 START 标准问地市取客户问地市并集 20170310 by zhaolipeng
+						userCityListString = unionCityCodes(userCityListString, cityListStr);
+						// 修改 END 20170310 by zhaolipeng
+						if (GetConfigValue.isOracle) {
+							querymanageId = ConstructSerialNum.GetOracleNextValNew("seq_querymanage_id", bussinessFlag);
+						} else if (GetConfigValue.isMySQL) {
+							querymanageId = ConstructSerialNum.getSerialIDNew("querymanage", "id", bussinessFlag);
+						}
+
+						lstpara = new ArrayList<Object>();
+						lstpara.add(querymanageId);
+						lstpara.add(kbdataid);
+						lstpara.add(customerquery);
+						lstpara.add(cityListStr);
+						lstpara.add(workerid);
+						lstpara.add(querytype);
+						lstpara.add(removeQueryStatus);
+						//新增修改返回值 update by sundj 20191113
+						lstpara.add(returnvalue);
+						lstSql.add(insertSql);
+						lstLstpara.add(lstpara);
+
+						// 文件日志
+						GlobalValue.myLog.info(workerid + "#" + insertSql + "#" + lstpara);
+					}
+				}
+
+				// 标准问作为扩展问插入
+				if (GetConfigValue.isOracle) {
+					querymanageId = ConstructSerialNum.GetOracleNextValNew("seq_querymanage_id", bussinessFlag);
+				} else if (GetConfigValue.isMySQL) {
+					querymanageId = ConstructSerialNum.getSerialIDNew("querymanage", "id", bussinessFlag);
+				}
+
+				lstpara = new ArrayList<Object>();
+				lstpara.add(querymanageId);
+				lstpara.add(kbdataid);
+				lstpara.add(normalquery);
+				// 修改 START 客户问地市如果没有的话
+				lstpara.add(StringUtils.isEmpty(userCityListString) ? serviceCityListString : userCityListString);
+				lstpara.add(workerid);
+				lstpara.add(querytype);
+				lstpara.add(removeQueryStatus);
+				//新增修改返回值 update by sundj 20191113
+				lstpara.add(returnvalue);
+				lstSql.add(insertSql);
+				lstLstpara.add(lstpara);
+
+				// 文件日志
+				GlobalValue.myLog.info(workerid + "#" + insertSql + "#" + lstpara);
+
+			}
+		}
+
+		return Database.executeNonQueryTransaction(lstSql, lstLstpara);
 	}
 }

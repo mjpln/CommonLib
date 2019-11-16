@@ -387,4 +387,48 @@ public class CommonLibStandardvalueDAO {
 		int c = Database.executeNonQueryTransaction(lstsql, lstlstpara);
 		return c;
 	}
+	
+	/**
+	 * 删除配置值
+	 * @param user 当前用户
+	 * @param stdmetafieldid参数配置值id
+	 * @return 删除返回的JSON串
+	 */
+	public static int delete(User user,String stdmetafieldid) {
+		// 定义多条SQL语句集合
+		List<String> lstsql = new ArrayList<String>();
+		// 定义多条SQL语句对应的绑定参数集合
+		List<List<?>> lstlstpara = new ArrayList<List<?>>();
+		// 定义SQL语句
+		StringBuilder sql = new StringBuilder();
+		// 定义删除配置值的SQL语句
+		sql.append("delete from metafield where metafieldid in (");
+		// 定义绑定参数集合
+		List<String> lstpara = new ArrayList<String>();
+		// 将别名id按照逗号拆分
+		String[] ids = stdmetafieldid.split(",");
+		// 循环遍历id数组
+		for (int i = 0; i < ids.length; i++) {
+			if (i != ids.length - 1) {
+				// 除了最后一个不加逗号，其他加上逗号
+				sql.append("?,");
+			} else {
+				// 最后一个加上右括号，将SQL语句补充完整
+				sql.append("?)");
+			}
+			// 绑定参数集合
+			lstpara.add(ids[i]);
+		}
+		// 将SQL语句放入集合中
+		lstsql.add(sql.toString());
+		// 将对应的绑定参数集合放入集合中
+		lstlstpara.add(lstpara);
+		
+		//文件日志
+		GlobalValue.myLog.info(user.getUserID() + "#" + sql + "#" + lstpara );
+
+		// 执行SQL语句，绑定事务处理，返回事务处理的结果
+		int c = Database.executeNonQueryTransaction(lstsql, lstlstpara);
+		return c;
+	}
 }

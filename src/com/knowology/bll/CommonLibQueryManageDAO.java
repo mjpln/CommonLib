@@ -2887,6 +2887,31 @@ public class CommonLibQueryManageDAO {
 		}
 		return null;
 	}
+	
+	/**
+	 * 查看子目录中是否存在同名业务
+	 * 
+	 * @param name 业务名
+	 * @param serviceType 四层结构串
+	 * @return true 存在 false 不存在
+	 */
+	public static boolean isExistChildServiceName(String serviceid, String name, String brand) {
+		int count = 0;
+		// 查询同级目录是否有重名
+		String sql1 = "select count(*) as nums from service where parentid=? and service =? and brand=? ";
+		Result rs1 = Database.executeQuery(sql1, serviceid, name, brand);
+
+		// 文件日志
+		GlobalValue.myLog.info(sql1);
+
+		if (rs1 != null) {
+			count = Integer.parseInt(rs1.getRows()[0].get("nums").toString());
+			if (count > 0) {
+				return true;
+			}
+		}
+		return false;
+	}
 
 	/**
 	 * 查看同名业务名称

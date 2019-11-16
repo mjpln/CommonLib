@@ -2374,15 +2374,16 @@ public class CommonLibServiceDAO {
 	 * @param brand 品牌
 	 * @return
 	 */
-	public static Result createServiceTree(String serviceid,String band) {
+	public static Result createServiceTree(String serviceid,String brand) {
 		String sql = "";
-		if ("".equals(serviceid) || serviceid == null) {// 加载根业务
-			sql = "select serviceid,service from service where service in("+band+")";
-		} else {// 根据父业务id，加载子业务id
-			sql = "select serviceid,service from service where parentid="+serviceid +" and  brand in("+band+")" ;
-		}
 		Result rs = null;
-		rs = Database.executeQuery(sql);
+		if ("".equals(serviceid) || serviceid == null) {// 加载根业务
+			sql = "select serviceid,service from service where service in(?)";
+			rs = Database.executeQuery(sql, brand);
+		} else {// 根据父业务id，加载子业务id
+			sql = "select serviceid,service from service where parentid=? and  brand in(?)" ;
+			rs = Database.executeQuery(sql, serviceid, brand);
+		}
 		//文件日志
 		GlobalValue.myLog.info( sql );
 		return rs;
@@ -2394,17 +2395,18 @@ public class CommonLibServiceDAO {
 	 * @param brand 品牌
 	 * @return
 	 */
-	public static Result createService(String serviceid,String band) {
+	public static Result createService(String serviceid,String brand) {
 		String sql = "";
-		if ("".equals(serviceid) || serviceid == null) {// 加载根业务
-			sql = "select serviceid,service from service where service in("+band+")";
-		} else {// 根据父业务id，加载子业务id
-			sql = "select serviceid,service from service where parentid="+serviceid;
-		}
 		Result rs = null;
-		rs = Database.executeQuery(sql);
+		if ("".equals(serviceid) || serviceid == null) {// 加载根业务
+			sql = "select serviceid,service from service where service in(?)";
+			rs = Database.executeQuery(sql, brand);
+		} else {// 根据父业务id，加载子业务id
+			sql = "select serviceid,service from service where parentid=?";
+			rs = Database.executeQuery(sql, serviceid);
+		}
 		//文件日志
-		GlobalValue.myLog.info( sql );
+		GlobalValue.myLog.info(sql);
 		return rs;
 	}
 	
@@ -2416,8 +2418,8 @@ public class CommonLibServiceDAO {
 	 */
 	public static Result getSonServiceInfo(String parentid){
 		Result rs = null;
-		String sql = " select * from (SELECT *  FROM service 　start  WITH serviceid ="+parentid+"　connect BY nocycle prior serviceid = parentid) where serviceid!="+parentid;
-		rs = Database.executeQuery(sql);
+		String sql = " select * from (SELECT *  FROM service start WITH serviceid = ?　connect BY nocycle prior serviceid = parentid) where serviceid != ?";
+		rs = Database.executeQuery(sql, parentid, parentid);
 		//文件日志
 		GlobalValue.myLog.info( sql );
 		return rs;
@@ -2480,7 +2482,7 @@ public class CommonLibServiceDAO {
 	}
 	
 	/**
-	 *@description  通过业务根、业务名称获得业务向上层级相关数据
+	 *@description  通过业务根、业务名称获得业务上层级相关数据
 	 *@param serviceRoot
 	 *@param name
 	 *@return 
@@ -2488,12 +2490,8 @@ public class CommonLibServiceDAO {
 	 */
 	public static Result getUpHierarchyService(String serviceRoot, String name) {
 		Result rs = null;
-		String sql = "";
-
-		sql = "SELECT * FROM service start " + "WITH service='" + name + "'"
-				+ " and brand in(" + serviceRoot
-				+ ") connect BY nocycle prior parentid=serviceid";
-		rs = Database.executeQuery(sql);
+		String sql = "SELECT * FROM service start " + "WITH service=? and brand in(?) connect BY nocycle prior parentid=serviceid";
+		rs = Database.executeQuery(sql, name, serviceRoot);
 		//文件日志
 		GlobalValue.myLog.info( sql );
 		return rs;
@@ -2539,12 +2537,9 @@ public class CommonLibServiceDAO {
 	public static Result seletServiceByParentNameRootAndBrand(String rootService, String brand){
 		Result rs = null;
 		StringBuilder sb = new StringBuilder();
-		sb.append(" SELECT service, serviceid, parentid FROM service START WITH service IN (");
-		sb.append(rootService);
-		sb.append(") ");
-		sb.append(" AND brand in(" + brand + ")");
-		sb.append(" CONNECT BY PRIOR serviceid = parentid ");
-		rs = Database.executeQuery(sb.toString());
+		sb.append(" SELECT service, serviceid, parentid FROM service START WITH service IN(?)");
+		sb.append(" AND brand in(?) CONNECT BY PRIOR serviceid = parentid ");
+		rs = Database.executeQuery(sb.toString(), rootService, brand);
 		
 		//文件日志
 		GlobalValue.myLog.info( sb );
@@ -2559,16 +2554,34 @@ public class CommonLibServiceDAO {
 	 * @param brand
 	 * @return
 	 */
-	public static Result getServiceID(String service,
-			String brand) {
+	public static Result getServiceID(String service, String brand) {
 		Result rs = null;
-		String sql = "SELECT DISTINCT ss.serviceid  FROM service ss where ss.service in("
-				+ service + ") and ss.brand in(" + brand + ")";
-		rs = Database.executeQuery(sql);
+		String sql = "SELECT DISTINCT ss.serviceid  FROM service ss where ss.service in(?) and ss.brand in(?)";
+		rs = Database.executeQuery(sql, service, brand);
 		
 		//文件日志
 		GlobalValue.myLog.info( sql );
 		
 		return rs;
+	}
+
+	/**
+	 * 通过ID删除业务
+	 * 
+	 * @param serviceIds 业务ID集合
+	 */
+	public static int deleteServiceByID(List<String> serviceIds) {
+		String sql = "delete from service where serviceID in(?)";
+		StringBuffer serviceIdsBuffer = new StringBuffer();
+		for(int i = 0; i < serviceIds.size(); i++)  {
+			serviceIdsBuffer.append(serviceIds.get(i));
+			if(i < serviceIds.size() - 1) {
+				serviceIdsBuffer.append(",");
+			}
+		}
+		int count = Database.executeNonQuery(sql, serviceIdsBuffer.toString());
+		//文件日志
+		GlobalValue.myLog.info(sql);
+		return count;
 	}
 }

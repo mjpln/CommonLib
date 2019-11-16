@@ -201,12 +201,6 @@ gen
 target
 
 # Java class files
-<<<<<<< HEAD
-*.class
-/bin/
-/bin/
-=======
 *.class
 /bin/
 rebel.xml
->>>>>>> branch 'master' of https://github.com/Unioncast-km/CommonLib.git
